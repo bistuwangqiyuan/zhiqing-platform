@@ -1,0 +1,177 @@
+{
+  "base_npv_usd_mm": 31.76,
+  "discount_rate": 0.35,
+  "initial_investment_mm": 10.0,
+  "single_factor_tornado": [
+    {
+      "name": "ARPU",
+      "low": -11.38,
+      "high": 11.38,
+      "spread": 22.76
+    },
+    {
+      "name": "Churn (反向)",
+      "low": -10.47,
+      "high": 10.47,
+      "spread": 20.94
+    },
+    {
+      "name": "销售效率",
+      "low": -10.01,
+      "high": 10.01,
+      "spread": 20.03
+    },
+    {
+      "name": "转化率",
+      "low": -9.67,
+      "high": 9.67,
+      "spread": 19.34
+    },
+    {
+      "name": "单位成本",
+      "low": -3.03,
+      "high": 3.03,
+      "spread": 6.05
+    },
+    {
+      "name": "技术成本",
+      "low": -1.82,
+      "high": 1.82,
+      "spread": 3.63
+    }
+  ],
+  "heatmap_arpu_x_conversion": [
+    {
+      "arpu_pct": -30,
+      "row": [
+        {
+          "conversion_pct": -30,
+          "npv_delta": -29.02
+        },
+        {
+          "conversion_pct": -15,
+          "npv_delta": -23.04
+        },
+        {
+          "conversion_pct": 0,
+          "npv_delta": -17.07
+        },
+        {
+          "conversion_pct": 15,
+          "npv_delta": -11.09
+        },
+        {
+          "conversion_pct": 30,
+          "npv_delta": -5.12
+        }
+      ]
+    },
+    {
+      "arpu_pct": -15,
+      "row": [
+        {
+          "conversion_pct": -30,
+          "npv_delta": -23.04
+        },
+        {
+          "conversion_pct": -15,
+          "npv_delta": -15.79
+        },
+        {
+          "conversion_pct": 0,
+          "npv_delta": -8.53
+        },
+        {
+          "conversion_pct": 15,
+          "npv_delta": -1.28
+        },
+        {
+          "conversion_pct": 30,
+          "npv_delta": 5.97
+        }
+      ]
+    },
+    {
+      "arpu_pct": 0,
+      "row": [
+        {
+          "conversion_pct": -30,
+          "npv_delta": -17.07
+        },
+        {
+          "conversion_pct": -15,
+          "npv_delta": -8.53
+        },
+        {
+          "conversion_pct": 0,
+          "npv_delta": 0.0
+        },
+        {
+          "conversion_pct": 15,
+          "npv_delta": 8.53
+        },
+        {
+          "conversion_pct": 30,
+          "npv_delta": 17.07
+        }
+      ]
+    },
+    {
+      "arpu_pct": 15,
+      "row": [
+        {
+          "conversion_pct": -30,
+          "npv_delta": -11.09
+        },
+        {
+          "conversion_pct": -15,
+          "npv_delta": -1.28
+        },
+        {
+          "conversion_pct": 0,
+          "npv_delta": 8.53
+        },
+        {
+          "conversion_pct": 15,
+          "npv_delta": 18.35
+        },
+        {
+          "conversion_pct": 30,
+          "npv_delta": 28.16
+        }
+      ]
+    },
+    {
+      "arpu_pct": 30,
+      "row": [
+        {
+          "conversion_pct": -30,
+          "npv_delta": -5.12
+        },
+        {
+          "conversion_pct": -15,
+          "npv_delta": 5.97
+        },
+        {
+          "conversion_pct": 0,
+          "npv_delta": 17.07
+        },
+        {
+          "conversion_pct": 15,
+          "npv_delta": 28.16
+        },
+        {
+          "conversion_pct": 30,
+          "npv_delta": 39.26
+        }
+      ]
+    }
+  ],
+  "method": "5 年自由现金流贴现 (创业 hurdle rate 35%)，扣 45% (税+冗余/法务/合规)，加 Y0 初始投资 -$10M",
+  "notes": [
+    "折现率 35% 对应早期创业项目典型 IRR 门槛",
+    "未计入终值，保守口径仅取 5 年 cash flows",
+    "Opex 因子下降代表成本优化为利好",
+    "热力图反映乘性叠加效果"
+  ]
+}

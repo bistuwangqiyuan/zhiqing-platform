@@ -1,0 +1,85 @@
+{
+  "seed": 20260501,
+  "anchor": {
+    "registered_entities_china_2024": 189000000,
+    "new_companies_china_2024": 4546000,
+    "founder_intent_pool_total": 12300000,
+    "depth_payment_conversion_ratio": {
+      "low": 0.06,
+      "mid": 0.1,
+      "high": 0.155,
+      "source": "对标 Crunchbase Pro / 艾瑞咨询 SaaS 企服付费转化率"
+    },
+    "arpu_usd_year": {
+      "low": 1440,
+      "mid": 1920,
+      "high": 2640,
+      "source": "深度年费 + 报告增值包；对标 Bloomberg Lite + Crunchbase Pro 区间"
+    },
+    "deep_consulting_arpu_usd": 38000,
+    "deep_consulting_attach_rate": 0.012
+  },
+  "tam_usd_mm_per_year": {
+    "low": 1063.0,
+    "mid": 2362.0,
+    "high": 5033.0
+  },
+  "sam_usd_mm_per_year": {
+    "low": 446.0,
+    "mid": 992.0,
+    "high": 2114.0
+  },
+  "som_year5_usd_mm": {
+    "low": 1.56,
+    "mid": 8.23,
+    "high": 34.25
+  },
+  "five_year_path_mid": [
+    {
+      "year": 2026,
+      "paying_users": 492,
+      "subscription_revenue_mm": 0.94,
+      "deep_projects": 12,
+      "deep_revenue_mm": 0.46,
+      "total_cash_mm": 1.4
+    },
+    {
+      "year": 2027,
+      "paying_users": 1844,
+      "subscription_revenue_mm": 3.54,
+      "deep_projects": 28,
+      "deep_revenue_mm": 1.06,
+      "total_cash_mm": 4.6
+    },
+    {
+      "year": 2028,
+      "paying_users": 5535,
+      "subscription_revenue_mm": 10.63,
+      "deep_projects": 52,
+      "deep_revenue_mm": 1.98,
+      "total_cash_mm": 12.6
+    },
+    {
+      "year": 2029,
+      "paying_users": 12791,
+      "subscription_revenue_mm": 24.56,
+      "deep_projects": 97,
+      "deep_revenue_mm": 3.69,
+      "total_cash_mm": 28.24
+    },
+    {
+      "year": 2030,
+      "paying_users": 25092,
+      "subscription_revenue_mm": 48.18,
+      "deep_projects": 221,
+      "deep_revenue_mm": 8.4,
+      "total_cash_mm": 56.57
+    }
+  ],
+  "method": "TAM = 意向池 × 付费转化率 × ARPU；SAM = TAM × 可服务比例 (0.42)；SOM = SAM × 份额情景",
+  "notes": [
+    "意向池采用广义口径(含未注册/个体户/连续创业/海外华人创业)",
+    "未将股权变现计入 SOM，仅口径为现金类年度收入池",
+    "随机种子用于其他模型一致性"
+  ]
+}

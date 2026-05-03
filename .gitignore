@@ -1,0 +1,15 @@
+node_modules
+.next
+.env
+.env.local
+out
+dist
+*.log
+.DS_Store
+__pycache__
+*.pyc
+.vercel
+build*.log
+dev*.log
+prod*.log
+install.log

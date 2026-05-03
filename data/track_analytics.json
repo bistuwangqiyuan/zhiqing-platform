@@ -1,0 +1,156 @@
+{
+  "seed": 20260501,
+  "n_paths": 15000,
+  "weights": {
+    "market_size": 0.18,
+    "growth": 0.16,
+    "unit_economics": 0.14,
+    "policy": 0.1,
+    "capital_access": 0.1,
+    "exit_friendly": 0.1,
+    "tech_maturity": 0.12,
+    "entry_barrier": 0.1
+  },
+  "score_matrix": [
+    {
+      "track": "AI 应用与数据服务",
+      "market_size": 8.6,
+      "growth": 8.8,
+      "unit_economics": 7.4,
+      "policy": 6.6,
+      "capital_access": 8.4,
+      "exit_friendly": 8.2,
+      "tech_maturity": 7.8,
+      "entry_barrier": 6.6,
+      "weighted": 7.91
+    },
+    {
+      "track": "企业软件与自动化",
+      "market_size": 7.5,
+      "growth": 6.9,
+      "unit_economics": 8.0,
+      "policy": 7.8,
+      "capital_access": 7.2,
+      "exit_friendly": 7.4,
+      "tech_maturity": 8.2,
+      "entry_barrier": 6.0,
+      "weighted": 7.4
+    },
+    {
+      "track": "先进制造",
+      "market_size": 7.2,
+      "growth": 6.0,
+      "unit_economics": 6.4,
+      "policy": 8.4,
+      "capital_access": 6.4,
+      "exit_friendly": 6.2,
+      "tech_maturity": 7.2,
+      "entry_barrier": 8.0,
+      "weighted": 6.92
+    },
+    {
+      "track": "绿色低碳与能源材料",
+      "market_size": 8.0,
+      "growth": 7.2,
+      "unit_economics": 5.6,
+      "policy": 8.8,
+      "capital_access": 7.4,
+      "exit_friendly": 6.4,
+      "tech_maturity": 6.6,
+      "entry_barrier": 8.0,
+      "weighted": 7.23
+    },
+    {
+      "track": "医疗健康与器械",
+      "market_size": 7.8,
+      "growth": 6.2,
+      "unit_economics": 6.6,
+      "policy": 6.8,
+      "capital_access": 7.0,
+      "exit_friendly": 6.8,
+      "tech_maturity": 6.8,
+      "entry_barrier": 8.2,
+      "weighted": 7.02
+    }
+  ],
+  "win_frequency": [
+    {
+      "track": "AI 应用与数据服务",
+      "win_rate": 0.7996
+    },
+    {
+      "track": "企业软件与自动化",
+      "win_rate": 0.1148
+    },
+    {
+      "track": "绿色低碳与能源材料",
+      "win_rate": 0.0597
+    },
+    {
+      "track": "医疗健康与器械",
+      "win_rate": 0.0167
+    },
+    {
+      "track": "先进制造",
+      "win_rate": 0.0092
+    }
+  ],
+  "rank_robustness": [
+    {
+      "track": "AI 应用与数据服务",
+      "rank_distribution": [
+        0.7996,
+        0.1434,
+        0.0432,
+        0.011,
+        0.0028
+      ]
+    },
+    {
+      "track": "企业软件与自动化",
+      "rank_distribution": [
+        0.1148,
+        0.4321,
+        0.2742,
+        0.1311,
+        0.0477
+      ]
+    },
+    {
+      "track": "先进制造",
+      "rank_distribution": [
+        0.0092,
+        0.0681,
+        0.1535,
+        0.2932,
+        0.4761
+      ]
+    },
+    {
+      "track": "绿色低碳与能源材料",
+      "rank_distribution": [
+        0.0597,
+        0.2467,
+        0.3201,
+        0.2273,
+        0.1462
+      ]
+    },
+    {
+      "track": "医疗健康与器械",
+      "rank_distribution": [
+        0.0167,
+        0.1097,
+        0.209,
+        0.3374,
+        0.3272
+      ]
+    }
+  ],
+  "method": "8 维评分 + 高斯采样 + 加权和 → N 次抽样首优频率",
+  "notes": [
+    "权重可由创业者偏好调节，本模型为默认配置导出",
+    "高斯参数 (mu, sigma) 表征行业共识与不确定性",
+    "首优频率 ≠ 推荐进入；需结合个人禀赋与尽调"
+  ]
+}

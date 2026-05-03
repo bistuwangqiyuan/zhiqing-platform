@@ -1,0 +1,66 @@
+{
+  "per_report": {
+    "tokens": 635000,
+    "api_cost": 3.05,
+    "embedding_cost": 0.05,
+    "safety_eval_cost": 0.18,
+    "docgen_cost": 0.4,
+    "engineer_alloc": 32.0,
+    "total_per_report": 35.68
+  },
+  "monthly_per_user_subscription": {
+    "monthly_api_cost": 0.85,
+    "monthly_storage": 0.06,
+    "monthly_cdn": 0.04,
+    "monthly_auth": 0.02,
+    "monthly_total": 0.97
+  },
+  "annual_volume_costs": [
+    {
+      "year": 2026,
+      "deep_project_cost": 428.16,
+      "subscription_serving_cost": 20952.0,
+      "total_tech_cost": 21380.16,
+      "deep_projects": 12,
+      "sub_users": 1800
+    },
+    {
+      "year": 2027,
+      "deep_project_cost": 999.04,
+      "subscription_serving_cost": 65184.0,
+      "total_tech_cost": 66183.04,
+      "deep_projects": 28,
+      "sub_users": 5600
+    },
+    {
+      "year": 2028,
+      "deep_project_cost": 1998.08,
+      "subscription_serving_cost": 179256.0,
+      "total_tech_cost": 181254.08,
+      "deep_projects": 56,
+      "sub_users": 15400
+    },
+    {
+      "year": 2029,
+      "deep_project_cost": 3425.28,
+      "subscription_serving_cost": 424860.0,
+      "total_tech_cost": 428285.28,
+      "deep_projects": 96,
+      "sub_users": 36500
+    },
+    {
+      "year": 2030,
+      "deep_project_cost": 5352.0,
+      "subscription_serving_cost": 910248.0,
+      "total_tech_cost": 915600.0,
+      "deep_projects": 150,
+      "sub_users": 78200
+    }
+  ],
+  "method": "Token×单价 + 检索/评测/文档生成/分摊 → 单单位成本×规模 → 年度成本",
+  "notes": [
+    "单价采用混合大模型加权 (高质量推理路径)",
+    "工程师分摊从研发预算扣除项目数得出",
+    "随着规模化，单位成本预计下降 35% (规模化与缓存)；本模型保守保留"
+  ]
+}
