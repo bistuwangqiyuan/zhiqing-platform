@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Menu, X } from "lucide-react";
+import { HeaderAuthLink } from "./HeaderAuthLink";
 
 const NAV = [
   { href: "/products", label: "产品" },
@@ -65,12 +66,7 @@ export function Header() {
           >
             预约咨询
           </Link>
-          <Link
-            href="/pricing"
-            className="rounded-full bg-ink-900 text-white text-[13px] px-4 py-1.5 font-medium hover:bg-ink-700 transition-colors"
-          >
-            开始使用
-          </Link>
+          <HeaderAuthLink variant="desktop" />
         </div>
 
         <button
@@ -100,9 +96,9 @@ export function Header() {
               <Link href="/contact" onClick={() => setOpen(false)} className="btn-ghost flex-1">
                 预约咨询
               </Link>
-              <Link href="/pricing" onClick={() => setOpen(false)} className="btn-primary flex-1">
-                开始使用
-              </Link>
+              <span onClick={() => setOpen(false)} className="flex-1">
+                <HeaderAuthLink variant="mobile" />
+              </span>
             </li>
           </ul>
         </div>

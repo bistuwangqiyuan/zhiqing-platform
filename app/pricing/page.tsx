@@ -21,7 +21,7 @@ const PLANS = [
       "一键导出 PDF / Excel",
       "邮件支持"
     ],
-    cta: { href: "/checkout?plan=starter", label: "立即订阅" },
+    cta: { href: "/account", label: "充值开始使用" },
     accent: "from-accent-azure/10 to-transparent"
   },
   {
@@ -40,7 +40,7 @@ const PLANS = [
       "路演材料模板 + 自动数据包",
       "SLA 99.9% + 专属客户成功"
     ],
-    cta: { href: "/checkout?plan=enterprise", label: "选择企业版" },
+    cta: { href: "/contact?type=enterprise", label: "联系商务团队" },
     highlighted: true,
     accent: "from-accent-gold/15 to-transparent"
   },
@@ -101,6 +101,12 @@ export default function PricingPage() {
             <p className="mt-6 max-w-3xl text-[17px] text-ink-500 leading-relaxed">
               三档清晰：低门槛订阅、企业级合作、深度陪跑（可选股权对齐）。所有方案均含 7 天免费试用与发票。
             </p>
+            <div className="mt-8 rounded-2xl border border-accent-gold/40 bg-amber-50/60 p-5 max-w-3xl">
+              <p className="text-[13px] text-ink-700 leading-relaxed">
+                <strong>个人按量付费？</strong> 注册即送 ¥1 试用额度，按 <strong>LLM token 成本 × 1.1</strong> 实时扣减。
+                支持<strong>支付宝 / 微信支付</strong>充值。 → <Link href="/account" className="underline text-ink-900 hover:text-accent-gold">前往 /account</Link>
+              </p>
+            </div>
           </Reveal>
         </div>
       </section>
