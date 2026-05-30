@@ -39,6 +39,9 @@ const LAYERS = (flag("--layer") || "L1,L2,L3,L4,L5,L6")
   .map((s) => s.trim().toUpperCase());
 const JSON_OUT = flag("--json");
 const VERBOSE = has("--verbose");
+// 当 Netlify env 未配置时，不把 L5 env 探针视为「失败」，而是标记为
+// pending；exit code 仍可为 0。便于 CI 看到「除待用户配置外全绿」的语义。
+const SKIP_PENDING_ENV = has("--skip-pending-env");
 
 const RED = (s) => `\x1b[31m${s}\x1b[0m`;
 const GREEN = (s) => `\x1b[32m${s}\x1b[0m`;
@@ -127,19 +130,26 @@ async function http(method, pathname, opts = {}) {
 // ===========================================================================
 const results = [];
 function record(layer, name, pass, detail = {}) {
+  // 若标记为待用户配置 env，且开启 --skip-pending-env，转成 "pending"
+  const isPendingEnv = detail.pendingEnv === true;
+  const effectivePass = !pass && isPendingEnv && SKIP_PENDING_ENV ? "pending" : pass;
   results.push({
     layer,
     name,
-    pass,
+    pass: effectivePass === "pending" ? false : effectivePass,
+    pending: effectivePass === "pending",
     ts: new Date().toISOString(),
     ...detail
   });
-  const icon = pass ? GREEN("PASS") : RED("FAIL");
+  let icon;
+  if (effectivePass === true) icon = GREEN("PASS");
+  else if (effectivePass === "pending") icon = YELLOW("PEND");
+  else icon = RED("FAIL");
   const line = `${icon} [${layer}] ${name}${
     detail.status ? ` (${detail.status}, ${detail.ms ?? "?"}ms)` : ""
   }`;
   console.log(line);
-  if (!pass && detail.reason) console.log("       " + DIM(detail.reason));
+  if (effectivePass !== true && detail.reason) console.log("       " + DIM(detail.reason));
   if (VERBOSE && detail.snippet)
     console.log("       " + DIM(String(detail.snippet).slice(0, 160)));
 }
@@ -702,6 +712,7 @@ async function runL5() {
       record("L5", "Supabase env configured (probe → 401)", false, {
         status: r.status,
         ms: r.ms,
+        pendingEnv: true,
         reason:
           "Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。",
         snippet: r.text?.slice(0, 200)
@@ -731,6 +742,7 @@ async function runL5() {
       record("L5", `env: ${g.label}`, present, {
         status: 200,
         ms: 0,
+        pendingEnv: !present,
         reason: present
           ? "configured"
           : "未配置 — 见报告附录 A 关于 Netlify env 的清单"
@@ -834,6 +846,67 @@ async function runL6() {
     });
   }
 
+  // 首页所有 <Image>/<img>/srcset 引用的图片必须 200
+  // 包括直接 src=/images/* 和 Next.js 优化的 /_next/image?url=%2Fimages%2F...
+  {
+    const r = await http("GET", "/");
+    const directs = Array.from(
+      r.text.matchAll(/(?:src|href)="(\/images\/[^"]+\.(?:png|jpg|webp|svg|gif))"/gi),
+      (m) => m[1]
+    );
+    const optimized = Array.from(
+      r.text.matchAll(/url=(%2Fimages%2F[^"&]+)/gi),
+      (m) => decodeURIComponent(m[1])
+    );
+    const all = Array.from(new Set([...directs, ...optimized]));
+    let bad = 0;
+    const failures = [];
+    for (const p of all) {
+      const rr = await http("GET", p, { skipBody: true });
+      if (rr.status !== 200) {
+        bad++;
+        failures.push(`${p}=${rr.status}`);
+      }
+    }
+    const ok = all.length > 0 && bad === 0;
+    record("L6", `homepage images reachable (${all.length})`, ok, {
+      status: 200,
+      ms: 0,
+      reason: ok
+        ? `${all.length} unique images, all 200`
+        : `failures: ${failures.join(", ")}`
+    });
+  }
+
+  // 全部 Header 导航链接 200 (8 项硬编码 nav)
+  {
+    const navPaths = [
+      "/products",
+      "/technology",
+      "/track-analytics",
+      "/market",
+      "/cases",
+      "/insights",
+      "/pricing",
+      "/about"
+    ];
+    let bad = 0;
+    const failures = [];
+    for (const p of navPaths) {
+      const rr = await http("GET", p, { skipBody: true });
+      if (rr.status !== 200) {
+        bad++;
+        failures.push(`${p}=${rr.status}`);
+      }
+    }
+    const ok = bad === 0;
+    record("L6", `Header nav links all 200 (${navPaths.length})`, ok, {
+      status: 200,
+      ms: 0,
+      reason: ok ? `all 8 nav links 200` : `failures: ${failures.join(", ")}`
+    });
+  }
+
   // CSS 与 JS chunk 200
   {
     const r = await http("GET", "/");
@@ -876,12 +949,15 @@ async function main() {
 
   const total = results.length;
   const passed = results.filter((r) => r.pass).length;
-  const failed = total - passed;
+  const pending = results.filter((r) => r.pending).length;
+  const failed = total - passed - pending;
   const elapsed = Date.now() - t0;
 
   console.log(BOLD("\n=== 汇总 ==="));
   console.log(
     `共 ${total} · ${GREEN(`通过 ${passed}`)} · ${
+      pending > 0 ? YELLOW(`待用户配置 ${pending}`) : DIM("待用户 0")
+    } · ${
       failed > 0 ? RED(`失败 ${failed}`) : DIM("失败 0")
     } · 耗时 ${(elapsed / 1000).toFixed(1)}s`
   );
@@ -891,14 +967,26 @@ async function main() {
     const layerResults = results.filter((r) => r.layer === layer);
     if (layerResults.length === 0) continue;
     const lp = layerResults.filter((r) => r.pass).length;
-    const lf = layerResults.length - lp;
-    const tag = lf === 0 ? GREEN(`${lp}/${layerResults.length}`) : YELLOW(`${lp}/${layerResults.length}`);
+    const lpe = layerResults.filter((r) => r.pending).length;
+    const lf = layerResults.length - lp - lpe;
+    let tag;
+    if (lf === 0 && lpe === 0) tag = GREEN(`${lp}/${layerResults.length}`);
+    else if (lf === 0) tag = YELLOW(`${lp}/${layerResults.length} (+${lpe} pending)`);
+    else tag = RED(`${lp}/${layerResults.length}`);
     console.log(`  ${layer}: ${tag}`);
   }
 
   if (failed > 0) {
     console.log(BOLD(RED("\n失败详情:")));
-    for (const r of results.filter((r) => !r.pass)) {
+    for (const r of results.filter((rr) => !rr.pass && !rr.pending)) {
+      console.log(`  - [${r.layer}] ${r.name}`);
+      if (r.reason) console.log(`      ${DIM(r.reason)}`);
+    }
+  }
+
+  if (pending > 0) {
+    console.log(BOLD(YELLOW("\n待用户配置 (与代码无关):")));
+    for (const r of results.filter((rr) => rr.pending)) {
       console.log(`  - [${r.layer}] ${r.name}`);
       if (r.reason) console.log(`      ${DIM(r.reason)}`);
     }
@@ -911,7 +999,9 @@ async function main() {
     elapsed_ms: elapsed,
     total,
     passed,
+    pending,
     failed,
+    skip_pending_env: SKIP_PENDING_ENV,
     layers: Object.fromEntries(
       ["L1", "L2", "L3", "L4", "L5", "L6"].map((l) => {
         const lr = results.filter((r) => r.layer === l);
@@ -920,7 +1010,8 @@ async function main() {
           {
             total: lr.length,
             passed: lr.filter((r) => r.pass).length,
-            failed: lr.filter((r) => !r.pass).length
+            pending: lr.filter((r) => r.pending).length,
+            failed: lr.filter((r) => !r.pass && !r.pending).length
           }
         ];
       })
@@ -933,6 +1024,7 @@ async function main() {
     console.log(DIM(`\n→ JSON written to ${JSON_OUT}`));
   }
 
+  // 退出码：失败 > 0 → 1；否则即使有 pending 也是 0
   process.exit(failed === 0 ? 0 : 1);
 }
 

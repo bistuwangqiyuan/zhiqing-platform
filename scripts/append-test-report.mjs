@@ -51,6 +51,8 @@ lines.push(`| --- | --- |`);
 lines.push(`| BASE_URL | \`${data.base_url}\` |`);
 lines.push(`| 总用例 | ${data.total} |`);
 lines.push(`| 通过 | ${data.passed} |`);
+if (typeof data.pending === "number")
+  lines.push(`| 待用户配置 | ${data.pending} |`);
 lines.push(`| 失败 | ${data.failed} |`);
 lines.push(`| 耗时 | ${(data.elapsed_ms / 1000).toFixed(1)} s |`);
 lines.push(`| 通过率 | ${((data.passed / Math.max(data.total, 1)) * 100).toFixed(1)} % |`);
@@ -63,8 +65,12 @@ lines.push("| --- | --- | --- |");
 for (const layer of ["L1", "L2", "L3", "L4", "L5", "L6"]) {
   const s = data.layers[layer];
   if (!s || s.total === 0) continue;
-  const flag = s.failed === 0 ? "✅" : "⚠️";
-  lines.push(`| ${layer} | ${layerNames[layer]} | ${flag} ${s.passed} / ${s.total} |`);
+  let flag;
+  if (s.failed === 0 && (!s.pending || s.pending === 0)) flag = "✅";
+  else if (s.failed === 0) flag = "🟡 (待配置)";
+  else flag = "❌";
+  const pendingNote = s.pending && s.pending > 0 ? ` (含待配置 ${s.pending})` : "";
+  lines.push(`| ${layer} | ${layerNames[layer]} | ${flag} ${s.passed} / ${s.total}${pendingNote} |`);
 }
 lines.push("");
 
@@ -73,7 +79,10 @@ lines.push("");
 lines.push("| 层 | 用例 | 状态 | HTTP | 耗时 (ms) | 备注 |");
 lines.push("| --- | --- | :---: | :---: | ---: | --- |");
 for (const r of data.results) {
-  const status = r.pass ? "✅ PASS" : "❌ FAIL";
+  let status;
+  if (r.pass) status = "✅ PASS";
+  else if (r.pending) status = "🟡 PEND";
+  else status = "❌ FAIL";
   const note = (r.reason || "").replace(/\|/g, "\\|").slice(0, 120);
   lines.push(
     `| ${r.layer} | ${r.name.replace(/\|/g, "\\|")} | ${status} | ${r.status ?? "-"} | ${r.ms ?? "-"} | ${note} |`
@@ -81,7 +90,7 @@ for (const r of data.results) {
 }
 lines.push("");
 
-const failed = data.results.filter((r) => !r.pass);
+const failed = data.results.filter((r) => !r.pass && !r.pending);
 if (failed.length > 0) {
   lines.push("**失败详情**");
   lines.push("");
@@ -90,6 +99,17 @@ if (failed.length > 0) {
     if (r.reason) lines.push(`  - 原因: ${r.reason}`);
     if (r.snippet)
       lines.push(`  - 响应片段: \`${String(r.snippet).replace(/\n/g, " ").slice(0, 200)}\``);
+  }
+  lines.push("");
+}
+
+const pendingCases = data.results.filter((r) => r.pending);
+if (pendingCases.length > 0) {
+  lines.push("**待用户配置（不计入失败）**");
+  lines.push("");
+  for (const r of pendingCases) {
+    lines.push(`- **[${r.layer}] ${r.name}**`);
+    if (r.reason) lines.push(`  - 原因: ${r.reason}`);
   }
   lines.push("");
 }
