@@ -116,13 +116,25 @@ npm run build && npm start
 
 仓库根目录的 `netlify.toml` 已显式配置 `@netlify/plugin-nextjs`，`git push origin main` 即触发自动构建。
 
+### 5.1 数据库与认证（Neon + Auth.js v5）
+
+本平台使用 **Netlify 已连接的 Neon Postgres** 作为唯一持久层（无 Supabase）。一次性初始化：
+
+1. Netlify 站点 → **Extensions** → 安装 **Neon**。安装后 Netlify 会自动注入 `NETLIFY_DATABASE_URL` / `NETLIFY_DATABASE_URL_UNPOOLED` 至 site 的 production env。
+2. 打开 Neon Console → SQL Editor，粘贴并执行 [`lib/db/migrate.sql`](lib/db/migrate.sql)（一次即可，会创建 Auth.js 标准表 + 钱包/流水/AI 调用表，及 `debit_wallet` / `credit_wallet` 原子函数）。
+3. 在 Netlify env 中追加 `AUTH_SECRET`（`openssl rand -base64 32`）。其余 Stripe / Anthropic key 与之前一致。
+
+**登录方式**：默认无外部邮件服务，登录页直接展示一次性魔法链接（10 分钟有效）。要切换到真实邮件，在 `auth.ts` 的 `sendVerificationRequest` 接入 Resend / SES 即可，并把 `SHOW_DEV_MAGIC_LINK` 从 env 中移除。
+
+### 5.2 端到端测试
+
 部署完成后，仓库自带的零依赖测试套件 (Node 18+) 可一键回归全站：
 
 ```bash
-# 默认模式：env 未配置时把 7 项 env 探针标为 PEND（不计入 fail，exit 0）
+# 默认模式：env 未配置时把待用户 env 探针标为 PEND（不计入 fail，exit 0）
 npm run test:online
 
-# 严格模式：env 探针失败即 exit 1，用于强制配置完毕后的最终验证
+# 严格模式：env 探针失败即 exit 1，用于配置完毕后的最终验证
 npm run test:online:strict
 
 # 等待 Netlify 部署到位
@@ -135,7 +147,7 @@ node scripts/run-online-tests.mjs --json reports/run3.json --skip-pending-env
 node scripts/analyze-stability.mjs
 ```
 
-5 层测试矩阵 (67 用例)：
+6 层测试矩阵：
 
 | 层 | 名称 | 用例 |
 | --- | --- | --- |
@@ -143,7 +155,7 @@ node scripts/analyze-stability.mjs
 | L2 | SEO/SSG | sitemap, robots, favicon, OG/Twitter, canonical, 安全头, 缓存 |
 | L3 | 公开 API | contact (5 type) + subscribe + comments + checkout (410+308) + 405/malformed JSON |
 | L4 | 认证保护 | /account → /login, /api/ai 401/503, /api/account 401/503, /api/stripe/* |
-| L5 | 配置健康度 | /api/health 探针 + 6 项 env 组单独可见性 |
+| L5 | 配置健康度 | /api/health 探针 + Neon DB live ping + 6 项 env 组单独可见性 |
 | L6 | 性能/链接 | TTFB < 5s, HTML < 200KB, 8 nav links, 4 images, CSS+JS chunk |
 
 部署测试报告写入 [TEST_REPORT.md](TEST_REPORT.md)（每轮一节）。
@@ -162,7 +174,9 @@ node scripts/analyze-stability.mjs
 
 ## 六、未来扩展
 
-- ✅ 评论持久化 → 接入 Supabase / Postgres
+- ✅ 钱包/流水/AI 调用 → Neon Postgres（已上线）
+- ✅ 认证 → Auth.js v5 + Drizzle adapter（已上线）
+- ⏳ 真实邮件 → 在 `auth.ts:sendVerificationRequest` 接入 Resend / AWS SES
 - ✅ 支付 → 接入 Stripe API
 - ✅ 国际化 → next-intl + 中英双语
 - ✅ 私有化部署 (企业版以上)

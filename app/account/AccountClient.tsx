@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { signOut } from "next-auth/react";
 import {
   Wallet,
   ArrowUpCircle,
@@ -125,15 +126,14 @@ export function AccountClient({
             </h1>
             <p className="mt-2 text-[13px] text-ink-500">{email}</p>
           </div>
-          <form action="/auth/signout" method="POST">
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 text-[13px] text-ink-500 hover:text-ink-900 transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              退出登录
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="inline-flex items-center gap-2 text-[13px] text-ink-500 hover:text-ink-900 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            退出登录
+          </button>
         </div>
 
         {/* 余额 + 试调用 */}

@@ -1,47 +1,35 @@
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { auth } from "@/auth";
 import { TOPUP_PACKAGES } from "@/lib/pricing";
+import {
+  getWalletBalance,
+  listRecentTransactions
+} from "@/lib/wallet";
+import { isDbConfigured } from "@/lib/db";
 import { AccountClient } from "./AccountClient";
 
 export const metadata = { title: "我的账户" };
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
-  let supabase;
-  try {
-    supabase = createSupabaseServerClient();
-  } catch {
-    // Supabase not configured -> bounce to login (which surfaces the error).
+  if (!isDbConfigured()) {
     redirect("/login?error=auth_not_configured&redirect=/account");
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login?redirect=/account");
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.id) redirect("/login?redirect=/account");
 
-  const [walletRes, txRes] = await Promise.all([
-    supabase
-      .from("wallets")
-      .select("balance_micro")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("transactions")
-      .select("id, kind, amount_micro, balance_after, ref, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20)
-  ]);
-
-  const balance = Number(walletRes.data?.balance_micro ?? 0);
-  const transactions = (txRes.data ?? []).map((t) => ({
-    id: t.id as string,
-    kind: t.kind as "signup_grant" | "topup" | "debit" | "refund" | "adjust",
-    amount_micro: Number(t.amount_micro),
-    balance_after: Number(t.balance_after),
-    ref: (t.ref as string | null) ?? null,
-    created_at: t.created_at as string
-  }));
+  let balance = 0;
+  let transactions: Awaited<ReturnType<typeof listRecentTransactions>> = [];
+  try {
+    [balance, transactions] = await Promise.all([
+      getWalletBalance(user.id),
+      listRecentTransactions(user.id, 20)
+    ]);
+  } catch (e) {
+    console.error("[/account] wallet load failed", e);
+  }
 
   return (
     <AccountClient

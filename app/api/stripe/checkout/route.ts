@@ -11,31 +11,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { auth } from "@/auth";
+import { isDbConfigured } from "@/lib/db";
 import { getTopupPackage, TOPUP_PACKAGES } from "@/lib/pricing";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const ids = TOPUP_PACKAGES.map((p) => p.id) as [string, ...string[]];
 const Body = z.object({ topup_id: z.enum(ids) });
 
 export async function POST(req: NextRequest) {
-  // 1. Auth
-  let supabase;
-  try {
-    supabase = createSupabaseServerClient();
-  } catch (e) {
+  if (!isDbConfigured()) {
     return NextResponse.json(
-      { error: "service_misconfigured", detail: (e as Error).message },
+      { error: "service_misconfigured", detail: "NETLIFY_DATABASE_URL not set" },
       { status: 503 }
     );
   }
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  if (!user) {
+
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // 2. Validate body
   let body: z.infer<typeof Body>;
   try {
     body = Body.parse(await req.json());
@@ -51,7 +50,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unknown_topup" }, { status: 400 });
   }
 
-  // 3. Resolve Stripe Price ID from env
   const priceId = process.env[pkg.envPriceKey];
   if (!priceId) {
     return NextResponse.json(
@@ -72,13 +70,11 @@ export async function POST(req: NextRequest) {
   }
 
   const stripe = new Stripe(stripeKey);
-  const site =
-    process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
-  // 4. Create one-time Checkout Session with Alipay + WeChat Pay + Card
-  let session: Stripe.Checkout.Session;
+  let checkoutSession: Stripe.Checkout.Session;
   try {
-    session = await stripe.checkout.sessions.create({
+    checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card", "alipay", "wechat_pay"],
       payment_method_options: {
@@ -87,7 +83,6 @@ export async function POST(req: NextRequest) {
       line_items: [{ price: priceId, quantity: 1 }],
       currency: "cny",
       customer_email: user.email ?? undefined,
-      // metadata travels with the session and surfaces in the webhook
       metadata: {
         user_id: user.id,
         topup_id: pkg.id,
@@ -110,8 +105,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!session.url) {
+  if (!checkoutSession.url) {
     return NextResponse.json({ error: "stripe_no_url" }, { status: 502 });
   }
-  return NextResponse.json({ url: session.url });
+  return NextResponse.json({ url: checkoutSession.url });
 }

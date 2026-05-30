@@ -1,50 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { auth } from "@/auth";
+import {
+  getWalletBalance,
+  listRecentTransactions
+} from "@/lib/wallet";
+import { isDbConfigured } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest) {
-  let supabase;
-  try {
-    supabase = createSupabaseServerClient();
-  } catch (e) {
+  if (!isDbConfigured()) {
     return NextResponse.json(
-      { error: "service_misconfigured", detail: (e as Error).message },
+      { error: "service_misconfigured", detail: "NETLIFY_DATABASE_URL not set" },
       { status: 503 }
     );
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const [walletRes, txRes] = await Promise.all([
-    supabase
-      .from("wallets")
-      .select("balance_micro, updated_at")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("transactions")
-      .select("id, kind, amount_micro, balance_after, ref, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50)
-  ]);
-
-  if (walletRes.error) {
+  try {
+    const [balance, transactions] = await Promise.all([
+      getWalletBalance(user.id),
+      listRecentTransactions(user.id, 50)
+    ]);
+    return NextResponse.json({
+      user: { id: user.id, email: user.email },
+      balance_micro: balance,
+      transactions
+    });
+  } catch (e) {
     return NextResponse.json(
-      { error: walletRes.error.message },
+      { error: "wallet_read_failed", detail: (e as Error).message },
       { status: 500 }
     );
   }
-
-  return NextResponse.json({
-    user: { id: user.id, email: user.email },
-    balance_micro: walletRes.data?.balance_micro ?? 0,
-    transactions: txRes.data ?? []
-  });
 }

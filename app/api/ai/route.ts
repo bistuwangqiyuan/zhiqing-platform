@@ -9,12 +9,11 @@
  *
  * Flow:
  *   1. Auth (middleware already gated; double-check here)
- *   2. Estimate input tokens via anthropic.messages.countTokens
+ *   2. Estimate input tokens via simple char heuristic
  *   3. Pre-charge with charged_micro = computeCharge(model, estIn, max_tokens)
  *      → debit_wallet (atomic, fails if insufficient)
  *   4. Call anthropic.messages.create
- *   5. Reconcile: compute real charge from usage; refund (est - real) if positive,
- *      debit additional if negative (shouldn't happen since est uses max_tokens).
+ *   5. Reconcile: refund (est - real) if positive, debit additional if negative
  *   6. logAiCall(status='ok')
  *
  * On Anthropic failure: refund the full pre-charge, log status='error'.
@@ -24,7 +23,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { auth } from "@/auth";
+import { isDbConfigured } from "@/lib/db";
 import {
   computeCharge,
   DEFAULT_MODEL,
@@ -60,24 +60,19 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // 1. Auth
-  let supabase;
-  try {
-    supabase = createSupabaseServerClient();
-  } catch (e) {
+  if (!isDbConfigured()) {
     return NextResponse.json(
-      { error: "service_misconfigured", detail: (e as Error).message },
+      { error: "service_misconfigured", detail: "NETLIFY_DATABASE_URL not set" },
       { status: 503 }
     );
   }
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  if (!user) {
+
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // 2. Validate
   let body: z.infer<typeof Body>;
   try {
     body = Body.parse(await req.json());
@@ -97,16 +92,13 @@ export async function POST(req: NextRequest) {
   }
   const anthropic = new Anthropic({ apiKey });
 
-  // 3. Estimate input tokens (rough char-based heuristic).
-  //    We deliberately over-estimate so the pre-charge covers worst case;
-  //    real usage is reconciled and excess refunded after the Anthropic call.
-  //    Switch to anthropic.beta.messages.countTokens() later for tighter quotes.
+  // Pre-charge: deliberately over-estimate so the worst case is covered;
+  // the excess is refunded after Anthropic responds with real usage.
   const totalChars =
     body.messages.reduce((n, m) => n + m.content.length, 0) +
     (body.system?.length ?? 0);
-  const estIn = Math.ceil(totalChars / 3) + 100; // ~3 chars/token, +100 safety
+  const estIn = Math.ceil(totalChars / 3) + 100;
 
-  // 4. Pre-charge assuming worst case = max_tokens output
   const preEst = computeCharge(body.model, estIn, body.max_tokens);
   const preRef = `pre_${crypto.randomUUID()}`;
 
@@ -136,7 +128,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 5. Call Anthropic
   let resp;
   try {
     resp = await anthropic.messages.create({
@@ -146,7 +137,6 @@ export async function POST(req: NextRequest) {
       ...(body.system ? { system: body.system } : {})
     });
   } catch (e) {
-    // Full refund
     await creditWallet(
       user.id,
       preEst.charged_micro,
@@ -169,11 +159,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 6. Reconcile against real usage
   const realIn = resp.usage.input_tokens;
   const realOut = resp.usage.output_tokens;
   const real = computeCharge(body.model, realIn, realOut);
-  const delta = preEst.charged_micro - real.charged_micro; // >0 = refund some
+  const delta = preEst.charged_micro - real.charged_micro;
   let finalBalance: number | null = null;
 
   if (delta > 0) {
@@ -185,7 +174,6 @@ export async function POST(req: NextRequest) {
       { reason: "overestimate_refund", real_charge: real.charged_micro }
     );
   } else if (delta < 0) {
-    // Charged less than actual — rare (only if estIn underestimated).
     try {
       finalBalance = await debitWallet(
         user.id,
@@ -194,7 +182,6 @@ export async function POST(req: NextRequest) {
         { reason: "underestimate_topup", real_charge: real.charged_micro }
       );
     } catch {
-      // best-effort: service already rendered, accept the small loss
       finalBalance = await getWalletBalance(user.id);
     }
   } else {

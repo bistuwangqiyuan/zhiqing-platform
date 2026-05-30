@@ -1,113 +1,73 @@
 /**
- * Refreshes Supabase auth cookies on every request and gates protected routes.
- *   - /account/**       -> requires login (redirect to /login)
- *   - /api/ai           -> requires login (returns 401 JSON)
- *   - /api/account/**   -> requires login (returns 401 JSON)
+ * Auth + service-misconfiguration gate.
  *
- * If Supabase env vars are missing (so no auth backend is wired up), the
- * middleware degrades gracefully:
- *   - public pages render normally
- *   - protected pages redirect to /login (which itself surfaces the missing-env error)
- *   - protected API routes return 503 service_misconfigured
+ * Source of truth: Auth.js v5 `auth()` (database session strategy via Drizzle
+ * + Neon). Because that triggers a DB roundtrip per middleware invocation,
+ * the matcher is intentionally narrow: middleware only runs on protected
+ * paths. Public pages, static assets, the Stripe webhook and Auth.js'
+ * internal routes all bypass middleware entirely.
  *
- * All other routes pass through unchanged.
+ *   /account/**     -> requires session, else 302 /login?redirect=...
+ *   /api/ai/**      -> requires session, else 401 JSON
+ *   /api/account/** -> requires session, else 401 JSON
+ *
+ * If the database isn't configured (so Auth.js can't store sessions),
+ * protected pages redirect to /login?error=auth_not_configured and
+ * protected API routes return 503 service_misconfigured — without ever
+ * trying to talk to the DB.
  */
-import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-
-const PROTECTED_PAGE_PREFIXES = ["/account"];
-const PROTECTED_API_PREFIXES = ["/api/ai", "/api/account"];
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 
 function envConfigured() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return Boolean(url && key && url.startsWith("http"));
+  const dbOk = Boolean(
+    process.env.NETLIFY_DATABASE_URL ||
+      process.env.DATABASE_URL ||
+      process.env.NETLIFY_DATABASE_URL_UNPOOLED
+  );
+  const authOk = Boolean(
+    process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  );
+  return dbOk && authOk;
 }
 
-export async function middleware(request: NextRequest) {
+export default auth((request) => {
   const { pathname, search } = request.nextUrl;
+  const isProtectedApi =
+    pathname.startsWith("/api/ai") || pathname.startsWith("/api/account");
 
-  // Graceful degradation when Supabase isn't configured: don't crash on every
-  // public request. Only protected paths get a clear error response.
   if (!envConfigured()) {
-    if (PROTECTED_PAGE_PREFIXES.some((p) => pathname.startsWith(p))) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      url.searchParams.set("redirect", pathname + search);
-      url.searchParams.set("error", "auth_not_configured");
-      return NextResponse.redirect(url);
-    }
-    if (PROTECTED_API_PREFIXES.some((p) => pathname.startsWith(p))) {
+    if (isProtectedApi) {
       return NextResponse.json(
         {
           error: "service_misconfigured",
           message:
-            "Supabase environment variables are missing on this deployment."
+            "Required env missing — install the Netlify Neon extension (NETLIFY_DATABASE_URL) and set AUTH_SECRET, then redeploy."
         },
         { status: 503 }
       );
     }
-    return NextResponse.next({ request });
-  }
-
-  let response = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        }
-      }
-    }
-  );
-
-  // IMPORTANT: must be getUser() not getSession() to revalidate the JWT.
-  // We tolerate transient Supabase failures by treating them as "no user".
-  let user = null;
-  try {
-    const result = await supabase.auth.getUser();
-    user = result.data.user;
-  } catch {
-    user = null;
-  }
-
-  if (!user && PROTECTED_PAGE_PREFIXES.some((p) => pathname.startsWith(p))) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname + search);
+    url.searchParams.set("error", "auth_not_configured");
     return NextResponse.redirect(url);
   }
 
-  if (!user && PROTECTED_API_PREFIXES.some((p) => pathname.startsWith(p))) {
+  if (request.auth?.user) return NextResponse.next();
+
+  if (isProtectedApi) {
     return NextResponse.json(
       { error: "unauthorized", message: "请先登录" },
       { status: 401 }
     );
   }
-
-  return response;
-}
+  const url = request.nextUrl.clone();
+  url.pathname = "/login";
+  url.searchParams.set("redirect", pathname + search);
+  return NextResponse.redirect(url);
+});
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static, _next/image, favicon
-     * - public assets (images/, *.png, *.svg)
-     * - Stripe webhook (must NOT refresh user cookies)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|images/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/stripe/webhook).*)"
-  ]
+  matcher: ["/account/:path*", "/api/ai/:path*", "/api/account/:path*"]
 };

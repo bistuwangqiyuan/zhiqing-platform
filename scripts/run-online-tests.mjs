@@ -597,7 +597,7 @@ async function runL4() {
     });
     const ok = r.ok && (r.status === 401 || r.status === 503);
     const note =
-      r.status === 503 ? "503 (Supabase env 未配置)" : undefined;
+      r.status === 503 ? "503 (Neon DB env 未配置)" : undefined;
     record("L4", "POST /api/ai unauth → 401/503", ok, {
       status: r.status,
       ms: r.ms,
@@ -611,7 +611,7 @@ async function runL4() {
     const r = await http("GET", "/api/account/usage");
     const ok = r.ok && (r.status === 401 || r.status === 503);
     const note =
-      r.status === 503 ? "503 (Supabase env 未配置)" : undefined;
+      r.status === 503 ? "503 (Neon DB env 未配置)" : undefined;
     record("L4", "GET /api/account/usage unauth → 401/503", ok, {
       status: r.status,
       ms: r.ms,
@@ -628,7 +628,7 @@ async function runL4() {
     });
     const ok = r.ok && (r.status === 401 || r.status === 503);
     const note =
-      r.status === 503 ? "503 (Supabase env 未配置)" : undefined;
+      r.status === 503 ? "503 (Neon DB env 未配置)" : undefined;
     record("L4", "POST /api/stripe/checkout unauth → 401/503", ok, {
       status: r.status,
       ms: r.ms,
@@ -661,24 +661,26 @@ async function runL4() {
 async function runL5() {
   console.log(BOLD(BLUE("\n=== L5 · 配置健康度（推断 env 是否齐备）===")));
 
-  // 探针：把首页 HTML 抓下来，看是否还有 Supabase 配置错误
+  // 探针：把首页 HTML 抓下来，看是否还有运行时配置错误
   {
     const r = await http("GET", "/");
     const broken =
       r.text.includes("project's URL and Key are required") ||
       r.text.includes("Missing NEXT_PUBLIC_SUPABASE") ||
+      r.text.includes("NETLIFY_DATABASE_URL is missing") ||
       r.text.includes("Application error");
     const ok = r.ok && r.status === 200 && !broken;
     record("L5", "homepage no runtime error banner", ok, {
       status: r.status,
       ms: r.ms,
       reason: ok ? undefined : "page contains a runtime error message",
-      snippet: broken ? r.text.match(/.{0,120}(URL and Key|Missing NEXT_PUBLIC|Application error).{0,80}/)?.[0] : undefined
+      snippet: broken ? r.text.match(/.{0,120}(URL and Key|NETLIFY_DATABASE|Application error).{0,80}/)?.[0] : undefined
     });
   }
 
-  // /api/health: 完整 env + commit metadata 探针
+  // /api/health: 完整 env + commit metadata + DB ping
   let healthEnv = null;
+  let healthDb = null;
   {
     const r = await http("GET", "/api/health");
     let json = null;
@@ -690,35 +692,38 @@ async function runL5() {
       status: r.status,
       ms: r.ms,
       reason: ok
-        ? `commit=${json.commit_sha ?? "unknown"} env=${JSON.stringify(json.env)}`
+        ? `commit=${json.commit_sha ?? "unknown"} env=${JSON.stringify(json.env)} db=${JSON.stringify(json.db ?? {})}`
         : `unexpected ${r.status}`,
       snippet: r.text?.slice(0, 240)
     });
-    if (ok) healthEnv = json.env;
+    if (ok) {
+      healthEnv = json.env;
+      healthDb = json.db;
+    }
   }
 
-  // Supabase env 是否在线上生效：调用 /api/account/usage，
-  //   401 = env 已配置且 supabase 客户端能正常构造（仅缺 cookie）
-  //   503 = env 缺失，service_misconfigured
+  // Neon + AUTH 联通性：调用 /api/account/usage
+  //   401 = NETLIFY_DATABASE_URL 已配置且 Auth.js 能 boot（仅缺 cookie）
+  //   503 = NETLIFY_DATABASE_URL 缺失，service_misconfigured
   //   其他 = 异常
   {
     const r = await http("GET", "/api/account/usage");
     if (r.ok && r.status === 401) {
-      record("L5", "Supabase env configured (probe → 401)", true, {
+      record("L5", "Neon DB env configured (probe → 401)", true, {
         status: r.status,
         ms: r.ms
       });
     } else if (r.ok && r.status === 503) {
-      record("L5", "Supabase env configured (probe → 401)", false, {
+      record("L5", "Neon DB env configured (probe → 401)", false, {
         status: r.status,
         ms: r.ms,
         pendingEnv: true,
         reason:
-          "Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。",
+          "NETLIFY_DATABASE_URL 未注入 — 在 Site → Extensions 启用 Neon，并确认 Production env 中存在 NETLIFY_DATABASE_URL。",
         snippet: r.text?.slice(0, 200)
       });
     } else {
-      record("L5", "Supabase env configured (probe → 401)", false, {
+      record("L5", "Neon DB env configured (probe → 401)", false, {
         status: r.status,
         ms: r.ms,
         reason: `unexpected status ${r.status}`,
@@ -727,12 +732,12 @@ async function runL5() {
     }
   }
 
-  // 如果 /api/health 报告 env 状态，做软核对（每个 env 组单独一行）
+  // /api/health 报告的 env 状态做软核对（每个 env 组单独一行）
   if (healthEnv) {
     const groups = [
-      { key: "supabase", label: "Supabase 公开 URL+anon" },
-      { key: "supabase_admin", label: "Supabase service_role" },
-      { key: "stripe", label: "Stripe secret+webhook secret" },
+      { key: "neon", label: "Neon NETLIFY_DATABASE_URL" },
+      { key: "auth", label: "Auth.js AUTH_SECRET" },
+      { key: "stripe", label: "Stripe secret + webhook secret" },
       { key: "stripe_prices", label: "Stripe Price IDs (10/50/200)" },
       { key: "anthropic", label: "Anthropic API key" },
       { key: "site_url", label: "NEXT_PUBLIC_SITE_URL" }
@@ -748,6 +753,19 @@ async function runL5() {
           : "未配置 — 见报告附录 A 关于 Netlify env 的清单"
       });
     }
+  }
+
+  // 实际 DB 连通：/api/health 上报的 db.ok 必须为 true（仅在 neon env 已配置时核对）
+  if (healthEnv?.neon) {
+    const ok = healthDb?.ok === true;
+    record("L5", "Neon DB live ping", ok, {
+      status: 200,
+      ms: 0,
+      pendingEnv: !ok && !!healthDb?.error?.match(/migrate\.sql|relation.*does not exist|user.*does not exist/i),
+      reason: ok
+        ? "select 1 ok"
+        : `db ping failed: ${healthDb?.error ?? "unknown"} — 若错误指向缺失表，请在 Neon SQL editor 跑 lib/db/migrate.sql`
+    });
   }
 
   // Stripe checkout 路由可达
