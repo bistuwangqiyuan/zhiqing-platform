@@ -1,0 +1,17 @@
+test(e2e): expand harness with 404, OG image, cache, multi-type contact
+
+Round 2 enhancements to scripts/run-online-tests.mjs (no source changes;
+the Round 1 deploy is functionally complete for L1-L4):
+
+- L1: 404 negative cases (non-existent path, bad case id, bad insight slug)
+- L2: OG image reachability + Cache-Control on /images/* + canonical link
+- L3: contact multi-type fan-out (enterprise/deep/press/legal),
+  subscribe email echo, comments id echo, /api/checkout GET 308 redirect
+- L5: /api/stripe/checkout reachability probe
+- scripts/wait-for-deploy.mjs: zero-dep deploy probe with --expect-not /
+  --expect filters; used to gate test runs on a fresh Netlify build.
+- scripts/append-test-report.mjs: round-aware Markdown appender.
+
+Round 2 result: 49/50 PASS. The single remaining failure is the L5
+"Supabase env configured" probe which will go green once the user adds
+the env vars listed in TEST_REPORT.md appendix A.

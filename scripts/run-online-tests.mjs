@@ -61,7 +61,9 @@ const STATIC_PAGES = [
   { path: "/pricing", mustContain: ["定价"] },
   { path: "/contact", mustContain: ["联系", "咨询"] },
   { path: "/about", mustContain: ["关于"] },
-  { path: "/login", mustContain: ["登录", "邮箱"] }
+  // /login 把 LoginInner 包在 <Suspense fallback={null}>，SSR 不会渲染表单内容，
+  // 因此只校验 layout 一定输出的「智擎」品牌词。
+  { path: "/login", mustContain: ["智擎"] }
 ];
 
 const CASE_IDS = [
@@ -187,6 +189,39 @@ async function runL1() {
     }
     record("L1", page.path, true, { status: r.status, ms: r.ms });
   }
+
+  // 不存在的路径应该返回 404
+  {
+    const r = await http("GET", "/this-path-does-not-exist-xyz123");
+    const ok = r.ok && r.status === 404;
+    record("L1", "non-existent path → 404", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? undefined : `expected 404, got ${r.status}`
+    });
+  }
+
+  // /cases/<bad-id> 应返回 404 (动态路由 generateStaticParams 之外)
+  {
+    const r = await http("GET", "/cases/no-such-case-id-2099");
+    const ok = r.ok && r.status === 404;
+    record("L1", "/cases/<bad-id> → 404", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? undefined : `expected 404, got ${r.status}`
+    });
+  }
+
+  // /insights/<bad-slug> 应返回 404
+  {
+    const r = await http("GET", "/insights/no-such-slug-2099");
+    const ok = r.ok && r.status === 404;
+    record("L1", "/insights/<bad-slug> → 404", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? undefined : `expected 404, got ${r.status}`
+    });
+  }
 }
 
 // ===========================================================================
@@ -195,18 +230,21 @@ async function runL1() {
 async function runL2() {
   console.log(BOLD(BLUE("\n=== L2 · SEO / SSG 资产 ===")));
 
-  // sitemap.xml
+  // sitemap.xml — 验证 url 总数 + 全部以 /loc> 包裹
   {
     const r = await http("GET", "/sitemap.xml");
+    const urlCount = (r.text.match(/<loc>/g) ?? []).length;
     const ok =
       r.ok &&
       r.status === 200 &&
       r.text.includes("<urlset") &&
-      r.text.includes("<loc>");
+      urlCount >= 22; // 11 fixed + 6 cases + 6 insights = 23, 容忍 1 个差异
     record("L2", "/sitemap.xml", ok, {
       status: r.status,
       ms: r.ms,
-      reason: ok ? undefined : "not a valid sitemap",
+      reason: ok
+        ? `${urlCount} URLs`
+        : `not a valid sitemap (urls=${urlCount})`,
       snippet: r.text?.slice(0, 200)
     });
   }
@@ -248,10 +286,16 @@ async function runL2() {
       hasOgTitle: /<meta[^>]*property="og:title"[^>]*content="[^"]*"/i.test(
         r.text
       ),
+      hasOgImage: /<meta[^>]*property="og:image"[^>]*content="[^"]*"/i.test(
+        r.text
+      ),
       hasTwitterCard: /<meta[^>]*name="twitter:card"[^>]*content="[^"]*"/i.test(
         r.text
       ),
-      hasViewport: /<meta[^>]*name="viewport"[^>]*content="[^"]*"/i.test(r.text)
+      hasViewport: /<meta[^>]*name="viewport"[^>]*content="[^"]*"/i.test(r.text),
+      hasCanonical: /<link[^>]*rel="canonical"[^>]*href="https?:\/\/[^"]+"/i.test(
+        r.text
+      )
     };
     const missing = Object.entries(checks)
       .filter(([, v]) => !v)
@@ -261,6 +305,29 @@ async function runL2() {
       status: r.status,
       ms: r.ms,
       reason: ok ? undefined : `missing: ${missing.join(", ")}`
+    });
+  }
+
+  // OG 图片必须可达
+  {
+    const r = await http("GET", "/images/hero-orb.png", { skipBody: true });
+    const ok = r.ok && r.status === 200;
+    record("L2", "OG image /images/hero-orb.png", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? undefined : `expected 200, got ${r.status}`
+    });
+  }
+
+  // 静态图片缓存头 (netlify.toml 设了 1y immutable)
+  {
+    const r = await http("GET", "/images/hero-orb.png", { skipBody: true });
+    const cc = r.headers?.["cache-control"] ?? "";
+    const ok = r.ok && r.status === 200 && /max-age=\d{6,}/.test(cc);
+    record("L2", "image Cache-Control >= 6 digits", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? `${cc}` : `cache-control=${cc || "<empty>"}`
     });
   }
 }
@@ -286,11 +353,36 @@ async function runL3() {
     try {
       json = JSON.parse(r.text);
     } catch {}
-    const ok = r.ok && r.status === 200 && json && json.success === true;
+    const ok =
+      r.ok &&
+      r.status === 200 &&
+      json &&
+      json.success === true &&
+      typeof json.ticket === "string";
     record("L3", "POST /api/contact", ok, {
       status: r.status,
       ms: r.ms,
-      reason: ok ? undefined : `not success`,
+      reason: ok ? undefined : `unexpected response`,
+      snippet: r.text?.slice(0, 200)
+    });
+  }
+
+  // /api/contact 各 type 都能返回 ticket
+  for (const t of ["enterprise", "deep", "press", "legal"]) {
+    const r = await http("POST", "/api/contact", {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: t, name: "x", email: "x@y.z", message: "m" })
+    });
+    let json = null;
+    try {
+      json = JSON.parse(r.text);
+    } catch {}
+    const ok =
+      r.ok && r.status === 200 && json?.success === true && json?.type === t;
+    record("L3", `POST /api/contact type=${t}`, ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? undefined : `unexpected for type=${t}`,
       snippet: r.text?.slice(0, 200)
     });
   }
@@ -305,11 +397,16 @@ async function runL3() {
     try {
       json = JSON.parse(r.text);
     } catch {}
-    const ok = r.ok && r.status === 200 && json && json.success === true;
+    const ok =
+      r.ok &&
+      r.status === 200 &&
+      json &&
+      json.success === true &&
+      json.email === "test@example.com";
     record("L3", "POST /api/subscribe", ok, {
       status: r.status,
       ms: r.ms,
-      reason: ok ? undefined : `not success`,
+      reason: ok ? undefined : `unexpected response`,
       snippet: r.text?.slice(0, 200)
     });
   }
@@ -328,11 +425,16 @@ async function runL3() {
     try {
       json = JSON.parse(r.text);
     } catch {}
-    const ok = r.ok && r.status === 200 && json && json.success === true;
+    const ok =
+      r.ok &&
+      r.status === 200 &&
+      json?.success === true &&
+      json?.slug === "what-pre-founders-actually-need" &&
+      typeof json?.id === "string";
     record("L3", "POST /api/comments", ok, {
       status: r.status,
       ms: r.ms,
-      reason: ok ? undefined : `not success`,
+      reason: ok ? undefined : `unexpected response`,
       snippet: r.text?.slice(0, 200)
     });
   }
@@ -343,12 +445,35 @@ async function runL3() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
     });
-    const ok = r.ok && r.status === 410;
+    let json = null;
+    try {
+      json = JSON.parse(r.text);
+    } catch {}
+    const ok =
+      r.ok &&
+      r.status === 410 &&
+      json?.error === "deprecated" &&
+      json?.redirect === "/account";
     record("L3", "POST /api/checkout (deprecated → 410)", ok, {
       status: r.status,
       ms: r.ms,
-      reason: ok ? undefined : `expected 410, got ${r.status}`,
+      reason: ok ? undefined : `expected 410+deprecated json`,
       snippet: r.text?.slice(0, 200)
+    });
+  }
+
+  // /api/checkout GET → 308 redirect to /account
+  {
+    const r = await http("GET", "/api/checkout", { redirect: "manual" });
+    const loc = r.headers?.location ?? "";
+    const ok =
+      r.ok &&
+      (r.status === 307 || r.status === 308) &&
+      loc.includes("/account");
+    record("L3", "GET /api/checkout → /account", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? undefined : `status=${r.status} location=${loc}`
     });
   }
 }
@@ -374,44 +499,50 @@ async function runL4() {
     });
   }
 
-  // /api/ai anonymous → 401
+  // /api/ai anonymous → 401 (env configured) OR 503 (env missing)
   {
     const r = await http("POST", "/api/ai", {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] })
     });
-    const ok = r.ok && r.status === 401;
-    record("L4", "POST /api/ai unauthenticated → 401", ok, {
+    const ok = r.ok && (r.status === 401 || r.status === 503);
+    const note =
+      r.status === 503 ? "503 (Supabase env 未配置)" : undefined;
+    record("L4", "POST /api/ai unauth → 401/503", ok, {
       status: r.status,
       ms: r.ms,
-      reason: ok ? undefined : `expected 401, got ${r.status}`,
+      reason: ok ? note : `expected 401/503, got ${r.status}`,
       snippet: r.text?.slice(0, 200)
     });
   }
 
-  // /api/account/usage anonymous → 401
+  // /api/account/usage anonymous → 401 / 503
   {
     const r = await http("GET", "/api/account/usage");
-    const ok = r.ok && r.status === 401;
-    record("L4", "GET /api/account/usage unauth → 401", ok, {
+    const ok = r.ok && (r.status === 401 || r.status === 503);
+    const note =
+      r.status === 503 ? "503 (Supabase env 未配置)" : undefined;
+    record("L4", "GET /api/account/usage unauth → 401/503", ok, {
       status: r.status,
       ms: r.ms,
-      reason: ok ? undefined : `expected 401, got ${r.status}`,
+      reason: ok ? note : `expected 401/503, got ${r.status}`,
       snippet: r.text?.slice(0, 200)
     });
   }
 
-  // /api/stripe/checkout anonymous → 401
+  // /api/stripe/checkout anonymous → 401 / 503
   {
     const r = await http("POST", "/api/stripe/checkout", {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ topup_id: "topup_10" })
     });
-    const ok = r.ok && r.status === 401;
-    record("L4", "POST /api/stripe/checkout unauth → 401", ok, {
+    const ok = r.ok && (r.status === 401 || r.status === 503);
+    const note =
+      r.status === 503 ? "503 (Supabase env 未配置)" : undefined;
+    record("L4", "POST /api/stripe/checkout unauth → 401/503", ok, {
       status: r.status,
       ms: r.ms,
-      reason: ok ? undefined : `expected 401, got ${r.status}`,
+      reason: ok ? note : `expected 401/503, got ${r.status}`,
       snippet: r.text?.slice(0, 200)
     });
   }
@@ -453,6 +584,52 @@ async function runL5() {
       ms: r.ms,
       reason: ok ? undefined : "page contains a runtime error message",
       snippet: broken ? r.text.match(/.{0,120}(URL and Key|Missing NEXT_PUBLIC|Application error).{0,80}/)?.[0] : undefined
+    });
+  }
+
+  // Supabase env 是否在线上生效：调用 /api/account/usage，
+  //   401 = env 已配置且 supabase 客户端能正常构造（仅缺 cookie）
+  //   503 = env 缺失，service_misconfigured
+  //   其他 = 异常
+  {
+    const r = await http("GET", "/api/account/usage");
+    if (r.ok && r.status === 401) {
+      record("L5", "Supabase env configured (probe → 401)", true, {
+        status: r.status,
+        ms: r.ms
+      });
+    } else if (r.ok && r.status === 503) {
+      record("L5", "Supabase env configured (probe → 401)", false, {
+        status: r.status,
+        ms: r.ms,
+        reason:
+          "Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。",
+        snippet: r.text?.slice(0, 200)
+      });
+    } else {
+      record("L5", "Supabase env configured (probe → 401)", false, {
+        status: r.status,
+        ms: r.ms,
+        reason: `unexpected status ${r.status}`,
+        snippet: r.text?.slice(0, 200)
+      });
+    }
+  }
+
+  // Stripe env 是否配置：用一个无效 topup id 调 /api/stripe/checkout，
+  //   401 + middleware 已经返回，意味着没法直接探到。
+  //   只能间接推断：让用户登录后跑（后续轮次）。这里仅检查路由可达。
+  {
+    const r = await http("POST", "/api/stripe/checkout", {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topup_id: "topup_10" })
+    });
+    const ok = r.ok && (r.status === 401 || r.status === 503 || r.status === 400);
+    record("L5", "/api/stripe/checkout reachable", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? undefined : `unexpected ${r.status}`,
+      snippet: r.text?.slice(0, 200)
     });
   }
 
