@@ -8,7 +8,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "models": "python models/run_all.py"
+    "models": "python models/run_all.py",
+    "test:online": "node scripts/run-online-tests.mjs --skip-pending-env",
+    "test:online:strict": "node scripts/run-online-tests.mjs",
+    "test:wait-deploy": "node scripts/wait-for-deploy.mjs",
+    "test:stability": "node scripts/analyze-stability.mjs"
   },
   "dependencies": {
     "next": "14.2.15",

@@ -954,3 +954,235 @@ Webhook 端点：`https://zhiqing-platform.netlify.app/api/stripe/webhook`，事
   - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
 - **[L5] env: NEXT_PUBLIC_SITE_URL**
   - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+
+## Round 8 · 2026-05-30 05:59:01 UTC
+
+> **本轮修复点**: 稳定性回归：连续运行 3 次完整 67 用例，每次结果都是 60 PASS / 7 PEND / 0 FAIL，0 个 flaky 用例（scripts/analyze-stability.mjs 校验）。耗时 18~37 秒不等，符合 Netlify 边缘冷启动差异。
+
+**总览**
+
+| 项目 | 值 |
+| --- | --- |
+| BASE_URL | `https://zhiqing-platform.netlify.app` |
+| 总用例 | 67 |
+| 通过 | 60 |
+| 待用户配置 | 7 |
+| 失败 | 0 |
+| 耗时 | 37.1 s |
+| 通过率 | 89.6 % |
+
+**分层统计**
+
+| 层 | 名称 | 通过 / 总数 |
+| --- | --- | --- |
+| L1 | 公开页面 (HTTP 200 + 关键文案) | ✅ 26 / 26 |
+| L2 | SEO / SSG 资产 | ✅ 8 / 8 |
+| L3 | 公开 API | ✅ 11 / 11 |
+| L4 | 认证保护 | ✅ 5 / 5 |
+| L5 | 配置健康度 | 🟡 (待配置) 4 / 11 (含待配置 7) |
+| L6 | 性能与内部链接 | ✅ 6 / 6 |
+
+**用例明细**
+
+| 层 | 用例 | 状态 | HTTP | 耗时 (ms) | 备注 |
+| --- | --- | :---: | :---: | ---: | --- |
+| L1 | / | ✅ PASS | 200 | 462 |  |
+| L1 | /products | ✅ PASS | 200 | 115 |  |
+| L1 | /technology | ✅ PASS | 200 | 245 |  |
+| L1 | /track-analytics | ✅ PASS | 200 | 119 |  |
+| L1 | /market | ✅ PASS | 200 | 163 |  |
+| L1 | /cases | ✅ PASS | 200 | 108 |  |
+| L1 | /insights | ✅ PASS | 200 | 112 |  |
+| L1 | /pricing | ✅ PASS | 200 | 118 |  |
+| L1 | /contact | ✅ PASS | 200 | 450 |  |
+| L1 | /about | ✅ PASS | 200 | 124 |  |
+| L1 | /login | ✅ PASS | 200 | 104 |  |
+| L1 | /cases/ai-saas-2027 | ✅ PASS | 200 | 103 |  |
+| L1 | /cases/robotics-arm-2027 | ✅ PASS | 200 | 3983 |  |
+| L1 | /cases/medical-device-2028 | ✅ PASS | 200 | 2998 |  |
+| L1 | /cases/green-battery-2028 | ✅ PASS | 200 | 628 |  |
+| L1 | /cases/enterprise-ops-2029 | ✅ PASS | 200 | 672 |  |
+| L1 | /cases/logistics-data-2029 | ✅ PASS | 200 | 524 |  |
+| L1 | /insights/what-pre-founders-actually-need | ✅ PASS | 200 | 575 |  |
+| L1 | /insights/5-percent-equity-economics | ✅ PASS | 200 | 1178 |  |
+| L1 | /insights/monte-carlo-decision-making | ✅ PASS | 200 | 559 |  |
+| L1 | /insights/regulator-watcher-architecture | ✅ PASS | 200 | 520 |  |
+| L1 | /insights/critic-agent-explained | ✅ PASS | 200 | 528 |  |
+| L1 | /insights/ai-track-2027-outlook | ✅ PASS | 200 | 527 |  |
+| L1 | non-existent path → 404 | ✅ PASS | 404 | 590 |  |
+| L1 | /cases/<bad-id> → 404 | ✅ PASS | 404 | 571 |  |
+| L1 | /insights/<bad-slug> → 404 | ✅ PASS | 404 | 512 |  |
+| L2 | /sitemap.xml | ✅ PASS | 200 | 531 | 22 URLs |
+| L2 | /robots.txt | ✅ PASS | 200 | 510 |  |
+| L2 | /favicon.svg | ✅ PASS | 200 | 316 |  |
+| L2 | homepage <head> meta | ✅ PASS | 200 | 851 |  |
+| L2 | OG image /images/hero-orb.png | ✅ PASS | 200 | 330 |  |
+| L2 | image Cache-Control >= 6 digits | ✅ PASS | 200 | 104 | public,max-age=31536000,immutable |
+| L2 | homepage security headers | ✅ PASS | 200 | 340 | {"x-content-type-options":"nosniff","strict-transport-security":"max-age=31536000; includeSubDomains; preload"} |
+| L2 | sitemap sampled URLs reachable (5) | ✅ PASS | 200 | 0 | sampled 5 of 22, all 200 |
+| L3 | POST /api/contact | ✅ PASS | 200 | 469 |  |
+| L3 | POST /api/contact type=enterprise | ✅ PASS | 200 | 398 |  |
+| L3 | POST /api/contact type=deep | ✅ PASS | 200 | 473 |  |
+| L3 | POST /api/contact type=press | ✅ PASS | 200 | 398 |  |
+| L3 | POST /api/contact type=legal | ✅ PASS | 200 | 398 |  |
+| L3 | POST /api/subscribe | ✅ PASS | 200 | 405 |  |
+| L3 | POST /api/comments | ✅ PASS | 200 | 406 |  |
+| L3 | POST /api/checkout (deprecated → 410) | ✅ PASS | 410 | 420 |  |
+| L3 | GET /api/checkout → /account | ✅ PASS | 308 | 395 |  |
+| L3 | GET /api/contact (no GET handler) → 405 | ✅ PASS | 405 | 399 |  |
+| L3 | POST /api/subscribe malformed JSON → 4xx/5xx | ✅ PASS | 500 | 399 |  |
+| L4 | GET /account → /login | ✅ PASS | 307 | 94 |  |
+| L4 | POST /api/ai unauth → 401/503 | ✅ PASS | 503 | 95 | 503 (Supabase env 未配置) |
+| L4 | GET /api/account/usage unauth → 401/503 | ✅ PASS | 503 | 94 | 503 (Supabase env 未配置) |
+| L4 | POST /api/stripe/checkout unauth → 401/503 | ✅ PASS | 503 | 505 | 503 (Supabase env 未配置) |
+| L4 | POST /api/stripe/webhook bad sig → 400/500 | ✅ PASS | 500 | 457 |  |
+| L5 | homepage no runtime error banner | ✅ PASS | 200 | 177 |  |
+| L5 | /api/health responds with env snapshot | ✅ PASS | 200 | 703 | commit=unknown env={"supabase":false,"supabase_admin":false,"stripe":false,"stripe_prices":false,"anthropic":false,"site |
+| L5 | Supabase env configured (probe → 401) | 🟡 PEND | 503 | 95 | Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。 |
+| L5 | env: Supabase 公开 URL+anon | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: Supabase service_role | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: Stripe secret+webhook secret | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: Stripe Price IDs (10/50/200) | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: Anthropic API key | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: NEXT_PUBLIC_SITE_URL | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | /api/stripe/checkout reachable | ✅ PASS | 503 | 387 |  |
+| L5 | /api/stripe/webhook reachable | ✅ PASS | 500 | 396 |  |
+| L6 | homepage response < 5s | ✅ PASS | 200 | 188 | 188ms |
+| L6 | homepage HTML < 200KB | ✅ PASS | 200 | 113 | 92.3 KB |
+| L6 | internal links from / reachable (8) | ✅ PASS | 200 | 0 | sampled 8 unique hrefs, all 200 |
+| L6 | homepage images reachable (4) | ✅ PASS | 200 | 0 | 4 unique images, all 200 |
+| L6 | Header nav links all 200 (8) | ✅ PASS | 200 | 0 | all 8 nav links 200 |
+| L6 | CSS + main-app JS chunk 200 | ✅ PASS | 200 | 0 | css=200, js=200 |
+
+**待用户配置（不计入失败）**
+
+- **[L5] Supabase env configured (probe → 401)**
+  - 原因: Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。
+- **[L5] env: Supabase 公开 URL+anon**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: Supabase service_role**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: Stripe secret+webhook secret**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: Stripe Price IDs (10/50/200)**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: Anthropic API key**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: NEXT_PUBLIC_SITE_URL**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+
+## Round 9 · 2026-05-30 06:01:42 UTC
+
+> **本轮修复点**: 工程化收尾：（A）package.json 增加 npm run test:online / test:online:strict / test:wait-deploy 三条脚本；（B）README 增加 Netlify 上线与测试章节，把 5 层测试矩阵与所有命令交付给后续维护者。本轮无源码功能改动。
+
+**总览**
+
+| 项目 | 值 |
+| --- | --- |
+| BASE_URL | `https://zhiqing-platform.netlify.app` |
+| 总用例 | 67 |
+| 通过 | 60 |
+| 待用户配置 | 7 |
+| 失败 | 0 |
+| 耗时 | 22.6 s |
+| 通过率 | 89.6 % |
+
+**分层统计**
+
+| 层 | 名称 | 通过 / 总数 |
+| --- | --- | --- |
+| L1 | 公开页面 (HTTP 200 + 关键文案) | ✅ 26 / 26 |
+| L2 | SEO / SSG 资产 | ✅ 8 / 8 |
+| L3 | 公开 API | ✅ 11 / 11 |
+| L4 | 认证保护 | ✅ 5 / 5 |
+| L5 | 配置健康度 | 🟡 (待配置) 4 / 11 (含待配置 7) |
+| L6 | 性能与内部链接 | ✅ 6 / 6 |
+
+**用例明细**
+
+| 层 | 用例 | 状态 | HTTP | 耗时 (ms) | 备注 |
+| --- | --- | :---: | :---: | ---: | --- |
+| L1 | / | ✅ PASS | 200 | 1188 |  |
+| L1 | /products | ✅ PASS | 200 | 169 |  |
+| L1 | /technology | ✅ PASS | 200 | 285 |  |
+| L1 | /track-analytics | ✅ PASS | 200 | 113 |  |
+| L1 | /market | ✅ PASS | 200 | 125 |  |
+| L1 | /cases | ✅ PASS | 200 | 111 |  |
+| L1 | /insights | ✅ PASS | 200 | 111 |  |
+| L1 | /pricing | ✅ PASS | 200 | 113 |  |
+| L1 | /contact | ✅ PASS | 200 | 3105 |  |
+| L1 | /about | ✅ PASS | 200 | 117 |  |
+| L1 | /login | ✅ PASS | 200 | 890 |  |
+| L1 | /cases/ai-saas-2027 | ✅ PASS | 200 | 582 |  |
+| L1 | /cases/robotics-arm-2027 | ✅ PASS | 200 | 111 |  |
+| L1 | /cases/medical-device-2028 | ✅ PASS | 200 | 108 |  |
+| L1 | /cases/green-battery-2028 | ✅ PASS | 200 | 109 |  |
+| L1 | /cases/enterprise-ops-2029 | ✅ PASS | 200 | 141 |  |
+| L1 | /cases/logistics-data-2029 | ✅ PASS | 200 | 112 |  |
+| L1 | /insights/what-pre-founders-actually-need | ✅ PASS | 200 | 108 |  |
+| L1 | /insights/5-percent-equity-economics | ✅ PASS | 200 | 148 |  |
+| L1 | /insights/monte-carlo-decision-making | ✅ PASS | 200 | 111 |  |
+| L1 | /insights/regulator-watcher-architecture | ✅ PASS | 200 | 105 |  |
+| L1 | /insights/critic-agent-explained | ✅ PASS | 200 | 107 |  |
+| L1 | /insights/ai-track-2027-outlook | ✅ PASS | 200 | 107 |  |
+| L1 | non-existent path → 404 | ✅ PASS | 404 | 424 |  |
+| L1 | /cases/<bad-id> → 404 | ✅ PASS | 404 | 107 |  |
+| L1 | /insights/<bad-slug> → 404 | ✅ PASS | 404 | 112 |  |
+| L2 | /sitemap.xml | ✅ PASS | 200 | 96 | 22 URLs |
+| L2 | /robots.txt | ✅ PASS | 200 | 133 |  |
+| L2 | /favicon.svg | ✅ PASS | 200 | 86 |  |
+| L2 | homepage <head> meta | ✅ PASS | 200 | 380 |  |
+| L2 | OG image /images/hero-orb.png | ✅ PASS | 200 | 104 |  |
+| L2 | image Cache-Control >= 6 digits | ✅ PASS | 200 | 98 | public,max-age=31536000,immutable |
+| L2 | homepage security headers | ✅ PASS | 200 | 354 | {"x-content-type-options":"nosniff","strict-transport-security":"max-age=31536000; includeSubDomains; preload"} |
+| L2 | sitemap sampled URLs reachable (5) | ✅ PASS | 200 | 0 | sampled 5 of 22, all 200 |
+| L3 | POST /api/contact | ✅ PASS | 200 | 452 |  |
+| L3 | POST /api/contact type=enterprise | ✅ PASS | 200 | 520 |  |
+| L3 | POST /api/contact type=deep | ✅ PASS | 200 | 393 |  |
+| L3 | POST /api/contact type=press | ✅ PASS | 200 | 404 |  |
+| L3 | POST /api/contact type=legal | ✅ PASS | 200 | 404 |  |
+| L3 | POST /api/subscribe | ✅ PASS | 200 | 403 |  |
+| L3 | POST /api/comments | ✅ PASS | 200 | 453 |  |
+| L3 | POST /api/checkout (deprecated → 410) | ✅ PASS | 410 | 394 |  |
+| L3 | GET /api/checkout → /account | ✅ PASS | 308 | 390 |  |
+| L3 | GET /api/contact (no GET handler) → 405 | ✅ PASS | 405 | 393 |  |
+| L3 | POST /api/subscribe malformed JSON → 4xx/5xx | ✅ PASS | 500 | 402 |  |
+| L4 | GET /account → /login | ✅ PASS | 307 | 91 |  |
+| L4 | POST /api/ai unauth → 401/503 | ✅ PASS | 503 | 98 | 503 (Supabase env 未配置) |
+| L4 | GET /api/account/usage unauth → 401/503 | ✅ PASS | 503 | 91 | 503 (Supabase env 未配置) |
+| L4 | POST /api/stripe/checkout unauth → 401/503 | ✅ PASS | 503 | 505 | 503 (Supabase env 未配置) |
+| L4 | POST /api/stripe/webhook bad sig → 400/500 | ✅ PASS | 500 | 380 |  |
+| L5 | homepage no runtime error banner | ✅ PASS | 200 | 119 |  |
+| L5 | /api/health responds with env snapshot | ✅ PASS | 200 | 641 | commit=unknown env={"supabase":false,"supabase_admin":false,"stripe":false,"stripe_prices":false,"anthropic":false,"site |
+| L5 | Supabase env configured (probe → 401) | 🟡 PEND | 503 | 89 | Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。 |
+| L5 | env: Supabase 公开 URL+anon | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: Supabase service_role | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: Stripe secret+webhook secret | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: Stripe Price IDs (10/50/200) | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: Anthropic API key | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | env: NEXT_PUBLIC_SITE_URL | 🟡 PEND | 200 | 0 | 未配置 — 见报告附录 A 关于 Netlify env 的清单 |
+| L5 | /api/stripe/checkout reachable | ✅ PASS | 503 | 413 |  |
+| L5 | /api/stripe/webhook reachable | ✅ PASS | 500 | 394 |  |
+| L6 | homepage response < 5s | ✅ PASS | 200 | 124 | 124ms |
+| L6 | homepage HTML < 200KB | ✅ PASS | 200 | 170 | 92.3 KB |
+| L6 | internal links from / reachable (8) | ✅ PASS | 200 | 0 | sampled 8 unique hrefs, all 200 |
+| L6 | homepage images reachable (4) | ✅ PASS | 200 | 0 | 4 unique images, all 200 |
+| L6 | Header nav links all 200 (8) | ✅ PASS | 200 | 0 | all 8 nav links 200 |
+| L6 | CSS + main-app JS chunk 200 | ✅ PASS | 200 | 0 | css=200, js=200 |
+
+**待用户配置（不计入失败）**
+
+- **[L5] Supabase env configured (probe → 401)**
+  - 原因: Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。
+- **[L5] env: Supabase 公开 URL+anon**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: Supabase service_role**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: Stripe secret+webhook secret**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: Stripe Price IDs (10/50/200)**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: Anthropic API key**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单
+- **[L5] env: NEXT_PUBLIC_SITE_URL**
+  - 原因: 未配置 — 见报告附录 A 关于 Netlify env 的清单

@@ -112,6 +112,44 @@ npm run build && npm start
 
 ---
 
+## 五、上线 (Netlify) 与端到端测试
+
+仓库根目录的 `netlify.toml` 已显式配置 `@netlify/plugin-nextjs`，`git push origin main` 即触发自动构建。
+
+部署完成后，仓库自带的零依赖测试套件 (Node 18+) 可一键回归全站：
+
+```bash
+# 默认模式：env 未配置时把 7 项 env 探针标为 PEND（不计入 fail，exit 0）
+npm run test:online
+
+# 严格模式：env 探针失败即 exit 1，用于强制配置完毕后的最终验证
+npm run test:online:strict
+
+# 等待 Netlify 部署到位
+npm run test:wait-deploy
+
+# 指标稳定性回归（多次运行后比较）
+node scripts/run-online-tests.mjs --json reports/run1.json --skip-pending-env
+node scripts/run-online-tests.mjs --json reports/run2.json --skip-pending-env
+node scripts/run-online-tests.mjs --json reports/run3.json --skip-pending-env
+node scripts/analyze-stability.mjs
+```
+
+5 层测试矩阵 (67 用例)：
+
+| 层 | 名称 | 用例 |
+| --- | --- | --- |
+| L1 | 公开页面 | 11 顶级 + 6 案例 + 6 文章 + 3 项 404 = 26 |
+| L2 | SEO/SSG | sitemap, robots, favicon, OG/Twitter, canonical, 安全头, 缓存 |
+| L3 | 公开 API | contact (5 type) + subscribe + comments + checkout (410+308) + 405/malformed JSON |
+| L4 | 认证保护 | /account → /login, /api/ai 401/503, /api/account 401/503, /api/stripe/* |
+| L5 | 配置健康度 | /api/health 探针 + 6 项 env 组单独可见性 |
+| L6 | 性能/链接 | TTFB < 5s, HTML < 200KB, 8 nav links, 4 images, CSS+JS chunk |
+
+部署测试报告写入 [TEST_REPORT.md](TEST_REPORT.md)（每轮一节）。
+
+---
+
 ## 五、设计系统
 
 - **字体：**SF Pro Display + PingFang SC + Inter，行高与字间距 Apple 标准。
