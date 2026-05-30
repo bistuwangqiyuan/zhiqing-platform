@@ -1,8 +1,11 @@
 import type { MetadataRoute } from "next";
 
+const BASE =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://zhiqing-platform.netlify.app";
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [{ userAgent: "*", allow: "/", disallow: ["/api/"] }],
-    sitemap: "https://zhiqing.ai/sitemap.xml"
+    sitemap: `${BASE}/sitemap.xml`
   };
 }

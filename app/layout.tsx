@@ -3,8 +3,11 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://zhiqing-platform.netlify.app";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://zhiqing.ai"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "智擎 PreFounder · 创业前赛道与商业模式智能决策平台",
     template: "%s · 智擎 PreFounder"
@@ -37,7 +40,7 @@ export const metadata: Metadata = {
     images: ["/images/hero-orb.png"]
   },
   alternates: {
-    canonical: "https://zhiqing.ai"
+    canonical: SITE_URL
   },
   icons: {
     icon: [

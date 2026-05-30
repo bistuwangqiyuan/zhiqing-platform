@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type Mode = "loading" | "anon" | "auth";
+type Mode = "loading" | "anon" | "auth" | "misconfigured";
 
 export function HeaderAuthLink({
   variant = "desktop"
@@ -14,7 +14,14 @@ export function HeaderAuthLink({
   const [mode, setMode] = useState<Mode>("loading");
 
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
+    let supabase;
+    try {
+      supabase = createSupabaseBrowserClient();
+    } catch {
+      setMode("misconfigured");
+      return;
+    }
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       setMode(user ? "auth" : "anon");
     });
@@ -34,7 +41,9 @@ export function HeaderAuthLink({
   if (mode === "loading") {
     return <span className={cls + " opacity-50 pointer-events-none"}>…</span>;
   }
-  if (mode === "anon") {
+  if (mode === "anon" || mode === "misconfigured") {
+    // Even when Supabase isn't wired up we still show "登录" so the layout looks right;
+    // the /login page itself surfaces the misconfiguration.
     return (
       <Link href="/login" className={cls}>
         登录

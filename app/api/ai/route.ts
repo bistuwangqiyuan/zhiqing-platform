@@ -61,7 +61,15 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   // 1. Auth
-  const supabase = createSupabaseServerClient();
+  let supabase;
+  try {
+    supabase = createSupabaseServerClient();
+  } catch (e) {
+    return NextResponse.json(
+      { error: "service_misconfigured", detail: (e as Error).message },
+      { status: 503 }
+    );
+  }
   const {
     data: { user }
   } = await supabase.auth.getUser();

@@ -7,7 +7,14 @@ export const metadata = { title: "我的账户" };
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
-  const supabase = createSupabaseServerClient();
+  let supabase;
+  try {
+    supabase = createSupabaseServerClient();
+  } catch {
+    // Supabase not configured -> bounce to login (which surfaces the error).
+    redirect("/login?error=auth_not_configured&redirect=/account");
+  }
+
   const {
     data: { user }
   } = await supabase.auth.getUser();

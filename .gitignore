@@ -9,9 +9,12 @@ dist
 __pycache__
 *.pyc
 .vercel
+.netlify
 build*.log
 dev*.log
 prod*.log
 install.log
 tsconfig.tsbuildinfo
 next-env.d.ts
+.cursor/
+reports/*.json

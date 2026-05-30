@@ -4,7 +4,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest) {
-  const supabase = createSupabaseServerClient();
+  let supabase;
+  try {
+    supabase = createSupabaseServerClient();
+  } catch (e) {
+    return NextResponse.json(
+      { error: "service_misconfigured", detail: (e as Error).message },
+      { status: 503 }
+    );
+  }
+
   const {
     data: { user }
   } = await supabase.auth.getUser();

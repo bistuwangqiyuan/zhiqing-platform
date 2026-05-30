@@ -9,10 +9,19 @@ import { Mail, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 function LoginInner() {
   const search = useSearchParams();
   const redirect = search.get("redirect") ?? "/account";
+  const urlError = search.get("error");
 
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    urlError === "auth_not_configured"
+      ? "登录服务暂不可用：当前部署缺少 Supabase 配置，请联系管理员。"
+      : urlError === "missing_code"
+        ? "登录链接无效或已过期，请重新发送。"
+        : urlError
+          ? decodeURIComponent(urlError)
+          : null
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,7 +29,15 @@ function LoginInner() {
     setState("sending");
     setError(null);
 
-    const supabase = createSupabaseBrowserClient();
+    let supabase;
+    try {
+      supabase = createSupabaseBrowserClient();
+    } catch (err) {
+      setState("error");
+      setError((err as Error).message);
+      return;
+    }
+
     const site =
       process.env.NEXT_PUBLIC_SITE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "");

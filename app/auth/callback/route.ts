@@ -15,7 +15,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=missing_code", request.url));
   }
 
-  const supabase = createSupabaseServerClient();
+  let supabase;
+  try {
+    supabase = createSupabaseServerClient();
+  } catch (e) {
+    return NextResponse.redirect(
+      new URL(
+        `/login?error=${encodeURIComponent("auth_not_configured")}`,
+        request.url
+      )
+    );
+  }
+
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
