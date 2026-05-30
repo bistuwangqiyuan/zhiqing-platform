@@ -405,3 +405,96 @@ Webhook 端点：`https://zhiqing-platform.netlify.app/api/stripe/webhook`，事
 - **[L5] Supabase env configured (probe → 401)**
   - 原因: Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。
   - 响应片段: `{"error":"service_misconfigured","message":"Supabase environment variables are missing on this deployment."}`
+
+## Round 3 · 2026-05-30 05:27:21 UTC
+
+> **本轮修复点**: 新增 L6 性能与内部链接层（响应时间、HTML 体积、首页内部 8 条链接抽样、CSS/JS chunk 可达）；L2 增加全局安全头检查与 sitemap 抽样 URL 可达验证。本轮无源码修改。唯一失败仍为 L5 Supabase env 探针——线上 NEXT_PUBLIC_SUPABASE_URL/ANON_KEY 未配置导致受保护 API 返回 503，等待用户按附录 A 在 Netlify 添加环境变量。
+
+**总览**
+
+| 项目 | 值 |
+| --- | --- |
+| BASE_URL | `https://zhiqing-platform.netlify.app` |
+| 总用例 | 56 |
+| 通过 | 55 |
+| 失败 | 1 |
+| 耗时 | 17.0 s |
+| 通过率 | 98.2 % |
+
+**分层统计**
+
+| 层 | 名称 | 通过 / 总数 |
+| --- | --- | --- |
+| L1 | 公开页面 (HTTP 200 + 关键文案) | ✅ 26 / 26 |
+| L2 | SEO / SSG 资产 | ✅ 8 / 8 |
+| L3 | 公开 API | ✅ 9 / 9 |
+| L4 | 认证保护 | ✅ 5 / 5 |
+| L5 | 配置健康度 | ⚠️ 3 / 4 |
+| L6 | 性能与内部链接 | ✅ 4 / 4 |
+
+**用例明细**
+
+| 层 | 用例 | 状态 | HTTP | 耗时 (ms) | 备注 |
+| --- | --- | :---: | :---: | ---: | --- |
+| L1 | / | ✅ PASS | 200 | 890 |  |
+| L1 | /products | ✅ PASS | 200 | 143 |  |
+| L1 | /technology | ✅ PASS | 200 | 253 |  |
+| L1 | /track-analytics | ✅ PASS | 200 | 121 |  |
+| L1 | /market | ✅ PASS | 200 | 209 |  |
+| L1 | /cases | ✅ PASS | 200 | 113 |  |
+| L1 | /insights | ✅ PASS | 200 | 123 |  |
+| L1 | /pricing | ✅ PASS | 200 | 192 |  |
+| L1 | /contact | ✅ PASS | 200 | 683 |  |
+| L1 | /about | ✅ PASS | 200 | 447 |  |
+| L1 | /login | ✅ PASS | 200 | 111 |  |
+| L1 | /cases/ai-saas-2027 | ✅ PASS | 200 | 108 |  |
+| L1 | /cases/robotics-arm-2027 | ✅ PASS | 200 | 153 |  |
+| L1 | /cases/medical-device-2028 | ✅ PASS | 200 | 190 |  |
+| L1 | /cases/green-battery-2028 | ✅ PASS | 200 | 204 |  |
+| L1 | /cases/enterprise-ops-2029 | ✅ PASS | 200 | 128 |  |
+| L1 | /cases/logistics-data-2029 | ✅ PASS | 200 | 122 |  |
+| L1 | /insights/what-pre-founders-actually-need | ✅ PASS | 200 | 135 |  |
+| L1 | /insights/5-percent-equity-economics | ✅ PASS | 200 | 129 |  |
+| L1 | /insights/monte-carlo-decision-making | ✅ PASS | 200 | 129 |  |
+| L1 | /insights/regulator-watcher-architecture | ✅ PASS | 200 | 129 |  |
+| L1 | /insights/critic-agent-explained | ✅ PASS | 200 | 122 |  |
+| L1 | /insights/ai-track-2027-outlook | ✅ PASS | 200 | 134 |  |
+| L1 | non-existent path → 404 | ✅ PASS | 404 | 453 |  |
+| L1 | /cases/<bad-id> → 404 | ✅ PASS | 404 | 115 |  |
+| L1 | /insights/<bad-slug> → 404 | ✅ PASS | 404 | 105 |  |
+| L2 | /sitemap.xml | ✅ PASS | 200 | 99 | 22 URLs |
+| L2 | /robots.txt | ✅ PASS | 200 | 99 |  |
+| L2 | /favicon.svg | ✅ PASS | 200 | 89 |  |
+| L2 | homepage <head> meta | ✅ PASS | 200 | 606 |  |
+| L2 | OG image /images/hero-orb.png | ✅ PASS | 200 | 130 |  |
+| L2 | image Cache-Control >= 6 digits | ✅ PASS | 200 | 156 | public,max-age=31536000,immutable |
+| L2 | homepage security headers | ✅ PASS | 200 | 341 | {"x-content-type-options":"nosniff","strict-transport-security":"max-age=31536000; includeSubDomains; preload"} |
+| L2 | sitemap sampled URLs reachable (5) | ✅ PASS | 200 | 0 | sampled 5 of 22, all 200 |
+| L3 | POST /api/contact | ✅ PASS | 200 | 393 |  |
+| L3 | POST /api/contact type=enterprise | ✅ PASS | 200 | 383 |  |
+| L3 | POST /api/contact type=deep | ✅ PASS | 200 | 388 |  |
+| L3 | POST /api/contact type=press | ✅ PASS | 200 | 399 |  |
+| L3 | POST /api/contact type=legal | ✅ PASS | 200 | 390 |  |
+| L3 | POST /api/subscribe | ✅ PASS | 200 | 405 |  |
+| L3 | POST /api/comments | ✅ PASS | 200 | 440 |  |
+| L3 | POST /api/checkout (deprecated → 410) | ✅ PASS | 410 | 382 |  |
+| L3 | GET /api/checkout → /account | ✅ PASS | 308 | 380 |  |
+| L4 | GET /account → /login | ✅ PASS | 307 | 93 |  |
+| L4 | POST /api/ai unauth → 401/503 | ✅ PASS | 503 | 91 | 503 (Supabase env 未配置) |
+| L4 | GET /api/account/usage unauth → 401/503 | ✅ PASS | 503 | 97 | 503 (Supabase env 未配置) |
+| L4 | POST /api/stripe/checkout unauth → 401/503 | ✅ PASS | 503 | 472 | 503 (Supabase env 未配置) |
+| L4 | POST /api/stripe/webhook bad sig → 400/500 | ✅ PASS | 500 | 384 |  |
+| L5 | homepage no runtime error banner | ✅ PASS | 200 | 139 |  |
+| L5 | Supabase env configured (probe → 401) | ❌ FAIL | 503 | 95 | Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。 |
+| L5 | /api/stripe/checkout reachable | ✅ PASS | 503 | 394 |  |
+| L5 | /api/stripe/webhook reachable | ✅ PASS | 500 | 397 |  |
+| L6 | homepage response < 5s | ✅ PASS | 200 | 151 | 151ms |
+| L6 | homepage HTML < 200KB | ✅ PASS | 200 | 178 | 92.3 KB |
+| L6 | internal links from / reachable (8) | ✅ PASS | 200 | 0 | sampled 8 unique hrefs, all 200 |
+| L6 | CSS + main-app JS chunk 200 | ✅ PASS | 200 | 0 | css=200, js=200 |
+
+**失败详情**
+
+- **[L5] Supabase env configured (probe → 401)**
+  - 原因: Netlify 上 NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 未配置；请在 Site settings → Environment variables 添加（详见报告附录）。
+  - 响应片段: `{"error":"service_misconfigured","message":"Supabase environment variables are missing on this deployment."}`

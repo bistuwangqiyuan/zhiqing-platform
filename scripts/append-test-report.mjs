@@ -32,7 +32,8 @@ const layerNames = {
   L2: "SEO / SSG 资产",
   L3: "公开 API",
   L4: "认证保护",
-  L5: "配置健康度"
+  L5: "配置健康度",
+  L6: "性能与内部链接"
 };
 
 const lines = [];
@@ -59,7 +60,7 @@ lines.push("**分层统计**");
 lines.push("");
 lines.push("| 层 | 名称 | 通过 / 总数 |");
 lines.push("| --- | --- | --- |");
-for (const layer of ["L1", "L2", "L3", "L4", "L5"]) {
+for (const layer of ["L1", "L2", "L3", "L4", "L5", "L6"]) {
   const s = data.layers[layer];
   if (!s || s.total === 0) continue;
   const flag = s.failed === 0 ? "✅" : "⚠️";

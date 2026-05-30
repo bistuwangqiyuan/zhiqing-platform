@@ -1,5 +1,6 @@
 -- 智擎 PreFounder · 钱包 + 计费 初始化迁移
--- 所有金额以 micro_usd 存储（1 USD = 1,000,000），避免浮点误差。
+-- 所有金额以 micro_cny 存储（1 CNY = 1,000,000 micro_cny），与 lib/pricing.ts 一致。
+-- 整数运算避免浮点误差；Stripe 充值最小单位 1 fen = 10,000 micro_cny。
 
 -- =============================================================
 -- 1. wallets · 每个 auth.users 一条
@@ -131,7 +132,7 @@ begin
 end $$;
 
 -- =============================================================
--- 6. 注册赠 $1 试用额度
+-- 6. 注册赠 ¥1 试用额度（1,000,000 micro_cny）
 -- =============================================================
 create or replace function public.handle_new_user()
 returns trigger
@@ -145,7 +146,7 @@ begin
 
   insert into public.transactions(user_id, kind, amount_micro, balance_after, ref, meta)
   values (new.id, 'signup_grant', 1000000, 1000000, 'welcome-' || new.id::text,
-          jsonb_build_object('reason', 'signup_free_credit'));
+          jsonb_build_object('reason', 'signup_free_credit_cny_1'));
 
   return new;
 end $$;

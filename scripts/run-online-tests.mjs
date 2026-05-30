@@ -34,7 +34,7 @@ const BASE_URL =
   flag("--base") ||
   process.env.BASE_URL ||
   "https://zhiqing-platform.netlify.app";
-const LAYERS = (flag("--layer") || "L1,L2,L3,L4,L5")
+const LAYERS = (flag("--layer") || "L1,L2,L3,L4,L5,L6")
   .split(",")
   .map((s) => s.trim().toUpperCase());
 const JSON_OUT = flag("--json");
@@ -330,6 +330,54 @@ async function runL2() {
       reason: ok ? `${cc}` : `cache-control=${cc || "<empty>"}`
     });
   }
+
+  // 全局安全头 (netlify.toml + Netlify default)
+  {
+    const r = await http("GET", "/");
+    const sec = {
+      "x-content-type-options": r.headers?.["x-content-type-options"],
+      "strict-transport-security": r.headers?.["strict-transport-security"]
+    };
+    const missing = Object.entries(sec)
+      .filter(([, v]) => !v)
+      .map(([k]) => k);
+    const ok = r.ok && missing.length === 0;
+    record("L2", "homepage security headers", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok ? JSON.stringify(sec).slice(0, 120) : `missing: ${missing.join(", ")}`
+    });
+  }
+
+  // 全部 sitemap.xml 中的 URL 抽样验证 200
+  {
+    const sm = await http("GET", "/sitemap.xml");
+    const urls = (sm.text.match(/<loc>([^<]+)<\/loc>/g) ?? [])
+      .map((s) => s.replace(/<\/?loc>/g, ""))
+      .map((u) => {
+        try {
+          return new URL(u).pathname;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+    // 抽样 5 条
+    const sample = urls.slice(0, 5);
+    let bad = 0;
+    for (const p of sample) {
+      const rr = await http("GET", p, { skipBody: true });
+      if (rr.status !== 200) bad++;
+    }
+    const ok = sample.length > 0 && bad === 0;
+    record("L2", `sitemap sampled URLs reachable (${sample.length})`, ok, {
+      status: 200,
+      ms: 0,
+      reason: ok
+        ? `sampled ${sample.length} of ${urls.length}, all 200`
+        : `${bad}/${sample.length} failed`
+    });
+  }
 }
 
 // ===========================================================================
@@ -587,6 +635,26 @@ async function runL5() {
     });
   }
 
+  // /api/health: 完整 env + commit metadata 探针
+  let healthEnv = null;
+  {
+    const r = await http("GET", "/api/health");
+    let json = null;
+    try {
+      json = JSON.parse(r.text);
+    } catch {}
+    const ok = r.ok && r.status === 200 && json?.ok === true && json?.env;
+    record("L5", "/api/health responds with env snapshot", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok
+        ? `commit=${json.commit_sha ?? "unknown"} env=${JSON.stringify(json.env)}`
+        : `unexpected ${r.status}`,
+      snippet: r.text?.slice(0, 240)
+    });
+    if (ok) healthEnv = json.env;
+  }
+
   // Supabase env 是否在线上生效：调用 /api/account/usage，
   //   401 = env 已配置且 supabase 客户端能正常构造（仅缺 cookie）
   //   503 = env 缺失，service_misconfigured
@@ -616,9 +684,29 @@ async function runL5() {
     }
   }
 
-  // Stripe env 是否配置：用一个无效 topup id 调 /api/stripe/checkout，
-  //   401 + middleware 已经返回，意味着没法直接探到。
-  //   只能间接推断：让用户登录后跑（后续轮次）。这里仅检查路由可达。
+  // 如果 /api/health 报告 env 状态，做软核对（每个 env 组单独一行）
+  if (healthEnv) {
+    const groups = [
+      { key: "supabase", label: "Supabase 公开 URL+anon" },
+      { key: "supabase_admin", label: "Supabase service_role" },
+      { key: "stripe", label: "Stripe secret+webhook secret" },
+      { key: "stripe_prices", label: "Stripe Price IDs (10/50/200)" },
+      { key: "anthropic", label: "Anthropic API key" },
+      { key: "site_url", label: "NEXT_PUBLIC_SITE_URL" }
+    ];
+    for (const g of groups) {
+      const present = Boolean(healthEnv[g.key]);
+      record("L5", `env: ${g.label}`, present, {
+        status: 200,
+        ms: 0,
+        reason: present
+          ? "configured"
+          : "未配置 — 见报告附录 A 关于 Netlify env 的清单"
+      });
+    }
+  }
+
+  // Stripe checkout 路由可达
   {
     const r = await http("POST", "/api/stripe/checkout", {
       headers: { "Content-Type": "application/json" },
@@ -648,8 +736,99 @@ async function runL5() {
 }
 
 // ===========================================================================
-// 主流程
+// L6 — Performance / link integrity
 // ===========================================================================
+async function runL6() {
+  console.log(BOLD(BLUE("\n=== L6 · 性能与内部链接 ===")));
+
+  // TTFB / 首页响应时间
+  {
+    const r = await http("GET", "/");
+    const ok = r.ok && r.ms < 5000;
+    record(
+      "L6",
+      "homepage response < 5s",
+      ok,
+      {
+        status: r.status,
+        ms: r.ms,
+        reason: ok
+          ? `${r.ms}ms`
+          : `${r.ms}ms exceeds 5000ms threshold (cold start可能)`
+      }
+    );
+  }
+
+  // 首页大小 < 200KB
+  {
+    const r = await http("GET", "/");
+    const bytes = Buffer.byteLength(r.text || "", "utf8");
+    const kb = (bytes / 1024).toFixed(1);
+    const ok = r.ok && bytes < 200 * 1024;
+    record("L6", "homepage HTML < 200KB", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: `${kb} KB${ok ? "" : " (over 200KB)"}`
+    });
+  }
+
+  // 首页内部链接抽样可达性 (/products /pricing /about ...)
+  {
+    const r = await http("GET", "/");
+    const hrefs = Array.from(
+      r.text.matchAll(/href="(\/[^"#?][^"]*?)"/g),
+      (m) => m[1]
+    );
+    // 去重 + 过滤资源后缀
+    const internal = Array.from(
+      new Set(hrefs.filter((h) => !/\.(css|js|png|svg|jpg|webp|ico)$/.test(h)))
+    ).slice(0, 8);
+    let bad = 0;
+    const failures = [];
+    for (const h of internal) {
+      const rr = await http("GET", h, { skipBody: true });
+      if (rr.status !== 200) {
+        bad++;
+        failures.push(`${h}=${rr.status}`);
+      }
+    }
+    const ok = internal.length > 0 && bad === 0;
+    record("L6", `internal links from / reachable (${internal.length})`, ok, {
+      status: 200,
+      ms: 0,
+      reason: ok
+        ? `sampled ${internal.length} unique hrefs, all 200`
+        : `failures: ${failures.join(", ")}`
+    });
+  }
+
+  // CSS 与 JS chunk 200
+  {
+    const r = await http("GET", "/");
+    const cssMatch = r.text.match(/href="(\/_next\/static\/css\/[^"]+\.css)"/);
+    const jsMatch = r.text.match(
+      /src="(\/_next\/static\/chunks\/main-app[^"]+\.js)"/
+    );
+    let bad = 0;
+    const checks = [];
+    if (cssMatch) {
+      const rr = await http("GET", cssMatch[1], { skipBody: true });
+      if (rr.status !== 200) bad++;
+      checks.push(`css=${rr.status}`);
+    }
+    if (jsMatch) {
+      const rr = await http("GET", jsMatch[1], { skipBody: true });
+      if (rr.status !== 200) bad++;
+      checks.push(`js=${rr.status}`);
+    }
+    const ok = bad === 0 && checks.length > 0;
+    record("L6", "CSS + main-app JS chunk 200", ok, {
+      status: 200,
+      ms: 0,
+      reason: ok ? checks.join(", ") : `failures: ${checks.join(", ")}`
+    });
+  }
+}
 async function main() {
   console.log(BOLD("智擎 PreFounder · 上线测试"));
   console.log(DIM(`BASE_URL = ${BASE_URL}`));
@@ -661,6 +840,7 @@ async function main() {
   if (LAYERS.includes("L3")) await runL3();
   if (LAYERS.includes("L4")) await runL4();
   if (LAYERS.includes("L5")) await runL5();
+  if (LAYERS.includes("L6")) await runL6();
 
   const total = results.length;
   const passed = results.filter((r) => r.pass).length;
@@ -675,7 +855,7 @@ async function main() {
   );
 
   // 按 layer 拆分
-  for (const layer of ["L1", "L2", "L3", "L4", "L5"]) {
+  for (const layer of ["L1", "L2", "L3", "L4", "L5", "L6"]) {
     const layerResults = results.filter((r) => r.layer === layer);
     if (layerResults.length === 0) continue;
     const lp = layerResults.filter((r) => r.pass).length;
@@ -701,7 +881,7 @@ async function main() {
     passed,
     failed,
     layers: Object.fromEntries(
-      ["L1", "L2", "L3", "L4", "L5"].map((l) => {
+      ["L1", "L2", "L3", "L4", "L5", "L6"].map((l) => {
         const lr = results.filter((r) => r.layer === l);
         return [
           l,
