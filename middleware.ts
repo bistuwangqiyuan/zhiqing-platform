@@ -1,25 +1,49 @@
 /**
- * Auth + service-misconfiguration gate.
+ * Edge-safe auth gate.
  *
- * Source of truth: Auth.js v5 `auth()` (database session strategy via Drizzle
- * + Neon). Because that triggers a DB roundtrip per middleware invocation,
- * the matcher is intentionally narrow: middleware only runs on protected
- * paths. Public pages, static assets, the Stripe webhook and Auth.js'
- * internal routes all bypass middleware entirely.
+ * IMPORTANT: this file is bundled into a Netlify Edge Function, which runs on
+ * the Web/Edge runtime (no Node.js builtins). We therefore MUST NOT import
+ * "@/auth" here — that pulls in the Drizzle adapter, the Neon driver and
+ * nodemailer, all of which require Node's `stream`/`tls`/`crypto` and fail to
+ * bundle for the edge.
  *
- *   /account/**     -> requires session, else 302 /login?redirect=...
- *   /api/ai/**      -> requires session, else 401 JSON
- *   /api/account/** -> requires session, else 401 JSON
+ * Strategy: this is only a *first-gate* UX check based on the presence of the
+ * Auth.js session cookie. The authoritative validation happens server-side in
+ * the Node runtime (route handlers + pages call `auth()` and return 401 /
+ * redirect on an invalid/expired session). A forged cookie can at most reach a
+ * handler that immediately rejects it.
  *
- * If the database isn't configured (so Auth.js can't store sessions),
- * protected pages redirect to /login?error=auth_not_configured and
- * protected API routes return 503 service_misconfigured — without ever
- * trying to talk to the DB.
+ *   /account/**     -> no session cookie => 302 /login?redirect=...
+ *   /api/ai/**      -> no session cookie => 401 JSON
+ *   /api/account/** -> no session cookie => 401 JSON
+ *
+ * When required env is missing (DB or AUTH_SECRET), protected pages redirect to
+ * /login?error=auth_not_configured and protected APIs return 503 — without
+ * touching the DB.
  */
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import type { NextRequest } from "next/server";
 
-function envConfigured() {
+// Auth.js v5 session cookie names (chunked variants get a ".0" suffix).
+const SESSION_COOKIE_NAMES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  // legacy next-auth v4 names, just in case
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token"
+];
+
+function hasSessionCookie(request: NextRequest): boolean {
+  return SESSION_COOKIE_NAMES.some((name) => {
+    const c = request.cookies.get(name);
+    if (c?.value) return true;
+    // chunked cookie: authjs.session-token.0
+    const chunk0 = request.cookies.get(`${name}.0`);
+    return Boolean(chunk0?.value);
+  });
+}
+
+function envConfigured(): boolean {
   const dbOk = Boolean(
     process.env.NETLIFY_DATABASE_URL ||
       process.env.DATABASE_URL ||
@@ -31,7 +55,7 @@ function envConfigured() {
   return dbOk && authOk;
 }
 
-export default auth((request) => {
+export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const isProtectedApi =
     pathname.startsWith("/api/ai") || pathname.startsWith("/api/account");
@@ -42,7 +66,7 @@ export default auth((request) => {
         {
           error: "service_misconfigured",
           message:
-            "Required env missing — install the Netlify Neon extension (NETLIFY_DATABASE_URL) and set AUTH_SECRET, then redeploy."
+            "Required env missing — provision Netlify DB (NETLIFY_DATABASE_URL) and set AUTH_SECRET, then redeploy."
         },
         { status: 503 }
       );
@@ -54,7 +78,7 @@ export default auth((request) => {
     return NextResponse.redirect(url);
   }
 
-  if (request.auth?.user) return NextResponse.next();
+  if (hasSessionCookie(request)) return NextResponse.next();
 
   if (isProtectedApi) {
     return NextResponse.json(
@@ -66,7 +90,7 @@ export default auth((request) => {
   url.pathname = "/login";
   url.searchParams.set("redirect", pathname + search);
   return NextResponse.redirect(url);
-});
+}
 
 export const config = {
   matcher: ["/account/:path*", "/api/ai/:path*", "/api/account/:path*"]
