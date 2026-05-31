@@ -2,6 +2,15 @@
   command = "npm run build"
   publish = ".next"
 
+# A Netlify UI build plugin (@netlify/plugin-sitemap) emits an EMPTY static
+# sitemap.xml that shadows our Next.js route. force=true makes this rewrite win
+# over the static file so /sitemap.xml always serves our 23-URL sitemap.
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/api/sitemap"
+  status = 200
+  force = true
+
 # Official Next.js plugin (handles edge middleware, ISR, image optimization).
 [[plugins]]
   package = "@netlify/plugin-nextjs"
