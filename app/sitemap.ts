@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
-import { CASES } from "@/app/cases/page";
-import { POSTS } from "@/app/insights/page";
+import { CASES } from "@/app/cases/cases-data";
+import { POSTS } from "@/app/insights/posts-data";
 
 const BASE =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://zhiqing-platform.netlify.app";

@@ -7,8 +7,8 @@
  * netlify.toml force-rewrites /sitemap.xml -> /api/sitemap so this always wins.
  */
 import { NextResponse } from "next/server";
-import { CASES } from "@/app/cases/page";
-import { POSTS } from "@/app/insights/page";
+import { CASES } from "@/app/cases/cases-data";
+import { POSTS } from "@/app/insights/posts-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

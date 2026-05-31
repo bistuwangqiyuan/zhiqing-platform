@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { CASES } from "../page";
+import { CASES } from "../cases-data";
 import { Reveal } from "@/components/Reveal";
 import { ArrowLeft, ArrowRight, Calendar, MapPin } from "lucide-react";
 import { ShareBar } from "@/components/ShareBar";
