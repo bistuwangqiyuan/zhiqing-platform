@@ -1,15 +1,17 @@
 "use client";
 import { useMemo, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import { localizeTrack } from "@/lib/content/tracks";
 
-const DIMS = [
-  { key: "market_size", label: "市场规模" },
-  { key: "growth", label: "增长速率" },
-  { key: "unit_economics", label: "单位经济" },
-  { key: "policy", label: "政策友好" },
-  { key: "capital_access", label: "资金可得" },
-  { key: "exit_friendly", label: "退出友好" },
-  { key: "tech_maturity", label: "技术成熟" },
-  { key: "entry_barrier", label: "进入壁垒" }
+const DIM_KEYS = [
+  "market_size",
+  "growth",
+  "unit_economics",
+  "policy",
+  "capital_access",
+  "exit_friendly",
+  "tech_maturity",
+  "entry_barrier"
 ] as const;
 
 interface MatrixRow {
@@ -31,6 +33,10 @@ interface Props {
 }
 
 export function TrackAnalyzer({ matrix, weights: defaultWeights }: Props) {
+  const t = useTranslations("analyzer");
+  const locale = useLocale();
+  const dimLabels = t.raw("dims") as string[];
+  const DIMS = DIM_KEYS.map((key, i) => ({ key, label: dimLabels[i] }));
   const [w, setW] = useState<Record<string, number>>(defaultWeights);
 
   const sum = Object.values(w).reduce((a, b) => a + b, 0) || 1;
@@ -44,7 +50,7 @@ export function TrackAnalyzer({ matrix, weights: defaultWeights }: Props) {
     return [...matrix]
       .map((row) => {
         const score =
-          DIMS.reduce((acc, d) => acc + (row as any)[d.key] * (normalized[d.key] ?? 0), 0);
+          DIM_KEYS.reduce((acc, key) => acc + (row as any)[key] * (normalized[key] ?? 0), 0);
         return { ...row, score };
       })
       .sort((a, b) => b.score - a.score);
@@ -53,8 +59,8 @@ export function TrackAnalyzer({ matrix, weights: defaultWeights }: Props) {
   return (
     <div className="grid lg:grid-cols-12 gap-6">
       <div className="lg:col-span-5 rounded-2xl border border-ink-100 bg-white p-6">
-        <p className="text-[12px] tracking-[0.18em] uppercase text-ink-500">权重</p>
-        <p className="mt-1 text-[12px] text-ink-400">总和会自动归一化</p>
+        <p className="text-[12px] tracking-[0.18em] uppercase text-ink-500">{t("weights")}</p>
+        <p className="mt-1 text-[12px] text-ink-400">{t("weightsNote")}</p>
         <div className="mt-6 space-y-4">
           {DIMS.map((d) => (
             <div key={d.key}>
@@ -78,13 +84,13 @@ export function TrackAnalyzer({ matrix, weights: defaultWeights }: Props) {
           onClick={() => setW(defaultWeights)}
           className="mt-6 w-full text-[13px] py-2.5 rounded-full border border-ink-200 hover:bg-ink-50 transition-colors text-ink-700"
         >
-          恢复默认权重
+          {t("reset")}
         </button>
       </div>
 
       <div className="lg:col-span-7 rounded-2xl border border-ink-100 bg-white p-6">
-        <p className="text-[12px] tracking-[0.18em] uppercase text-ink-500">实时排序</p>
-        <p className="mt-1 text-[12px] text-ink-400">基于你设定的权重 (归一化) × 各维度均值得分</p>
+        <p className="text-[12px] tracking-[0.18em] uppercase text-ink-500">{t("liveRank")}</p>
+        <p className="mt-1 text-[12px] text-ink-400">{t("liveRankNote")}</p>
         <ol className="mt-6 space-y-3">
           {ranked.map((r, i) => (
             <li key={r.track} className="rounded-xl bg-ink-50 px-4 py-3">
@@ -96,7 +102,7 @@ export function TrackAnalyzer({ matrix, weights: defaultWeights }: Props) {
                 >
                   {i + 1}
                 </span>
-                <span className="flex-1 text-[14px] font-medium text-ink-900">{r.track}</span>
+                <span className="flex-1 text-[14px] font-medium text-ink-900">{localizeTrack(r.track, locale)}</span>
                 <span className="text-[14px] ticker text-ink-700">{r.score.toFixed(2)} / 10</span>
               </div>
               <div className="mt-2 h-1.5 rounded-full bg-white overflow-hidden">
@@ -109,7 +115,7 @@ export function TrackAnalyzer({ matrix, weights: defaultWeights }: Props) {
           ))}
         </ol>
         <p className="mt-6 text-[12px] text-ink-400">
-          注：本组件为教学用快速重排，正式报告会调用完整蒙特卡洛 + 反向情景。
+          {t("analyzerNote")}
         </p>
       </div>
     </div>

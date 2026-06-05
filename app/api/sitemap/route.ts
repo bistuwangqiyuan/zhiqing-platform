@@ -7,8 +7,7 @@
  * netlify.toml force-rewrites /sitemap.xml -> /api/sitemap so this always wins.
  */
 import { NextResponse } from "next/server";
-import { CASES } from "@/app/cases/cases-data";
-import { POSTS } from "@/app/insights/posts-data";
+import { sitemapPaths } from "@/app/sitemap";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,23 +16,7 @@ const BASE =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://zhiqing-platform.netlify.app";
 
 export async function GET() {
-  const fixed = [
-    "/",
-    "/products",
-    "/technology",
-    "/track-analytics",
-    "/market",
-    "/cases",
-    "/insights",
-    "/pricing",
-    "/contact",
-    "/about"
-  ];
-  const paths = [
-    ...fixed,
-    ...CASES.map((c) => `/cases/${c.id}`),
-    ...POSTS.map((p) => `/insights/${p.slug}`)
-  ];
+  const paths = sitemapPaths();
 
   const now = new Date().toISOString();
   const body =

@@ -11,7 +11,15 @@ interface Datum {
   total: number;
 }
 
-export function StackedRevChart({ data, height = 360 }: { data: Datum[]; height?: number }) {
+export function StackedRevChart({
+  data,
+  height = 360,
+  labels = { subscription: "订阅", cash: "现金咨询/B2B", equity: "股权变现 (中位)" }
+}: {
+  data: Datum[];
+  height?: number;
+  labels?: { subscription: string; cash: string; equity: string };
+}) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 12, right: 16, left: -4, bottom: 0 }}>
@@ -42,9 +50,9 @@ export function StackedRevChart({ data, height = 360 }: { data: Datum[]; height?
           formatter={(v: any, name: string) => [`$${Number(v).toFixed(1)}M`, name]}
         />
         <Legend wrapperStyle={{ paddingTop: 8, fontSize: 12 }} iconType="circle" iconSize={8} />
-        <Area type="monotone" dataKey="subscription" name="订阅" stackId="1" stroke="#0A84FF" fill="url(#g-sub)" />
-        <Area type="monotone" dataKey="cash_consulting" name="现金咨询/B2B" stackId="1" stroke="#1D1D1F" fill="url(#g-cash)" />
-        <Area type="monotone" dataKey="equity_exit" name="股权变现 (中位)" stackId="1" stroke="#C8A85A" fill="url(#g-eq)" />
+        <Area type="monotone" dataKey="subscription" name={labels.subscription} stackId="1" stroke="#0A84FF" fill="url(#g-sub)" />
+        <Area type="monotone" dataKey="cash_consulting" name={labels.cash} stackId="1" stroke="#1D1D1F" fill="url(#g-cash)" />
+        <Area type="monotone" dataKey="equity_exit" name={labels.equity} stackId="1" stroke="#C8A85A" fill="url(#g-eq)" />
       </AreaChart>
     </ResponsiveContainer>
   );

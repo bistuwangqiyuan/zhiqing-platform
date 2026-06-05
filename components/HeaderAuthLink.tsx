@@ -1,12 +1,14 @@
 "use client";
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { useSession, SessionProvider } from "next-auth/react";
 
 type Variant = "desktop" | "mobile";
 
 function HeaderAuthLinkInner({ variant }: { variant: Variant }) {
   const { status } = useSession();
+  const t = useTranslations("auth");
 
   const desktopCls =
     "rounded-full bg-ink-900 text-white text-[13px] px-4 py-1.5 font-medium hover:bg-ink-700 transition-colors";
@@ -19,13 +21,13 @@ function HeaderAuthLinkInner({ variant }: { variant: Variant }) {
   if (status !== "authenticated") {
     return (
       <Link href="/login" className={cls}>
-        登录
+        {t("signIn")}
       </Link>
     );
   }
   return (
     <Link href="/account" className={cls}>
-      我的账户
+      {t("account")}
     </Link>
   );
 }

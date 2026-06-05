@@ -7,7 +7,8 @@ interface Bin {
 }
 
 export function HistogramChart({
-  bins, height = 300, p10, p50, p90, color = "#C8A85A", xUnit = ""
+  bins, height = 300, p10, p50, p90, color = "#C8A85A", xUnit = "",
+  pathsLabel = "路径", freqLabel = "频次"
 }: {
   bins: Bin[];
   height?: number;
@@ -16,6 +17,8 @@ export function HistogramChart({
   p90?: number;
   color?: string;
   xUnit?: string;
+  pathsLabel?: string;
+  freqLabel?: string;
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -32,7 +35,7 @@ export function HistogramChart({
         <Tooltip
           contentStyle={{ background: "rgba(255,255,255,0.95)", border: "1px solid #E8E8ED", borderRadius: 12, fontSize: 12 }}
           labelFormatter={(l) => `${l}${xUnit}`}
-          formatter={(v: any) => [`${v} 路径`, "频次"]}
+          formatter={(v: any) => [`${v} ${pathsLabel}`, freqLabel]}
         />
         <Bar dataKey="count" fill={color} radius={[3, 3, 0, 0]} />
         {p10 != null && <ReferenceLine x={p10} stroke="#86868B" strokeDasharray="3 3" />}

@@ -8,7 +8,15 @@ interface Row {
   row: Cell[];
 }
 
-export function Heatmap({ grid }: { grid: Row[] }) {
+export function Heatmap({
+  grid,
+  header = "ARPU \\ 转化",
+  note = "数值为 NPV 偏离基准 (USD M)。绿/金色表示正向，深蓝表示负向；中心 (ARPU=0, 转化=0) 即基础情景。"
+}: {
+  grid: Row[];
+  header?: string;
+  note?: string;
+}) {
   const flat = grid.flatMap((r) => r.row.map((c) => c.npv_delta));
   const min = Math.min(...flat);
   const max = Math.max(...flat);
@@ -32,7 +40,7 @@ export function Heatmap({ grid }: { grid: Row[] }) {
       <table className="text-[11px] w-full">
         <thead>
           <tr>
-            <th className="p-2 text-ink-400 font-normal">ARPU \ 转化</th>
+            <th className="p-2 text-ink-400 font-normal">{header}</th>
             {conv_vals.map((c) => (
               <th key={c} className="p-2 text-ink-500 font-normal">
                 {c > 0 ? `+${c}%` : `${c}%`}
@@ -62,7 +70,7 @@ export function Heatmap({ grid }: { grid: Row[] }) {
         </tbody>
       </table>
       <p className="mt-3 text-[11px] text-ink-400">
-        数值为 NPV 偏离基准 (USD M)。绿/金色表示正向，深蓝表示负向；中心 (ARPU=0, 转化=0) 即基础情景。
+        {note}
       </p>
     </div>
   );

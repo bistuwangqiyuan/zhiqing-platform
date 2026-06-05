@@ -1,45 +1,48 @@
-import Link from "next/link";
-
-const COLUMNS = [
-  {
-    title: "产品",
-    links: [
-      { href: "/products", label: "启径标准版" },
-      { href: "/products#enterprise", label: "企业版" },
-      { href: "/products#deep-program", label: "深度陪跑" },
-      { href: "/track-analytics", label: "赛道分析引擎" }
-    ]
-  },
-  {
-    title: "解决方案",
-    links: [
-      { href: "/cases", label: "成功案例" },
-      { href: "/market", label: "市场与财务" },
-      { href: "/technology", label: "技术架构" },
-      { href: "/insights", label: "研究洞察" }
-    ]
-  },
-  {
-    title: "公司",
-    links: [
-      { href: "/about", label: "关于我们" },
-      { href: "/about#team", label: "团队" },
-      { href: "/about#governance", label: "治理与合规" },
-      { href: "/contact", label: "联系我们" }
-    ]
-  },
-  {
-    title: "信息",
-    links: [
-      { href: "/pricing", label: "定价方案" },
-      { href: "/contact", label: "预约咨询" },
-      { href: "/insights", label: "学习中心" },
-      { href: "/about#disclaimer", label: "免责声明" }
-    ]
-  }
-];
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 
 export function Footer() {
+  const t = useTranslations("footer");
+
+  const columns = [
+    {
+      title: t("colProduct"),
+      links: [
+        { href: "/products", label: t("standard") },
+        { href: "/products#enterprise", label: t("enterprise") },
+        { href: "/products#deep-program", label: t("deepProgram") },
+        { href: "/track-analytics", label: t("trackEngine") }
+      ]
+    },
+    {
+      title: t("colSolutions"),
+      links: [
+        { href: "/cases", label: t("casesLink") },
+        { href: "/market", label: t("marketLink") },
+        { href: "/technology", label: t("technologyLink") },
+        { href: "/insights", label: t("insightsLink") }
+      ]
+    },
+    {
+      title: t("colCompany"),
+      links: [
+        { href: "/about", label: t("about") },
+        { href: "/about#team", label: t("team") },
+        { href: "/about#governance", label: t("governance") },
+        { href: "/contact", label: t("contact") }
+      ]
+    },
+    {
+      title: t("colInfo"),
+      links: [
+        { href: "/pricing", label: t("pricing") },
+        { href: "/contact", label: t("consult") },
+        { href: "/insights", label: t("learning") },
+        { href: "/about#disclaimer", label: t("disclaimer") }
+      ]
+    }
+  ];
+
   return (
     <footer className="border-t border-ink-100 bg-ink-50/40">
       <div className="container py-16">
@@ -54,11 +57,11 @@ export function Footer() {
               <span className="font-semibold text-ink-700">智擎 PreFounder</span>
             </div>
             <p className="mt-4 text-[13px] leading-relaxed text-ink-500 max-w-xs">
-              在你点燃第一笔资金之前，先点亮你的判断。多智能体工作流 + 可验证数据源 + 可复现财务模型。
+              {t("tagline")}
             </p>
           </div>
 
-          {COLUMNS.map((col) => (
+          {columns.map((col) => (
             <div key={col.title}>
               <h4 className="text-[13px] font-semibold text-ink-700 mb-4">{col.title}</h4>
               <ul className="space-y-3">
@@ -78,20 +81,18 @@ export function Footer() {
         </div>
 
         <div className="mt-14 pt-8 border-t border-ink-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <p className="text-[12px] text-ink-400">
-            © 2026 智擎 PreFounder. All rights reserved. · 商业计划版本 v3.0 · SEED 20260501
-          </p>
+          <p className="text-[12px] text-ink-400">{t("copyright")}</p>
           <div className="flex items-center gap-6">
             <Link href="/about#disclaimer" className="text-[12px] text-ink-400 hover:text-ink-700">
-              免责声明
+              {t("disclaimer")}
             </Link>
             <Link href="/about#privacy" className="text-[12px] text-ink-400 hover:text-ink-700">
-              隐私政策
+              {t("privacy")}
             </Link>
             <Link href="/about#terms" className="text-[12px] text-ink-400 hover:text-ink-700">
-              服务条款
+              {t("terms")}
             </Link>
-            <span className="text-[12px] text-ink-400">中国 · 全球</span>
+            <span className="text-[12px] text-ink-400">{t("region")}</span>
           </div>
         </div>
       </div>

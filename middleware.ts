@@ -1,45 +1,39 @@
 /**
- * Edge-safe auth gate.
+ * Edge-safe middleware: next-intl locale routing + an auth-cookie gate.
  *
- * IMPORTANT: this file is bundled into a Netlify Edge Function, which runs on
- * the Web/Edge runtime (no Node.js builtins). We therefore MUST NOT import
- * "@/auth" here — that pulls in the Drizzle adapter, the Neon driver and
- * nodemailer, all of which require Node's `stream`/`tls`/`crypto` and fail to
- * bundle for the edge.
+ * IMPORTANT: this file is bundled into a Netlify Edge Function (Web runtime, no
+ * Node.js builtins). We MUST NOT import "@/auth" here — that pulls in the
+ * Drizzle adapter / Neon driver / nodemailer, which need Node's
+ * stream/tls/crypto and fail to bundle for the edge.
  *
- * Strategy: this is only a *first-gate* UX check based on the presence of the
- * Auth.js session cookie. The authoritative validation happens server-side in
- * the Node runtime (route handlers + pages call `auth()` and return 401 /
- * redirect on an invalid/expired session). A forged cookie can at most reach a
- * handler that immediately rejects it.
+ * Auth is only a *first-gate* UX check on the Auth.js session cookie. The
+ * authoritative validation happens server-side (Node runtime) in route
+ * handlers + pages via auth().
  *
- *   /account/**     -> no session cookie => 302 /login?redirect=...
- *   /api/ai/**      -> no session cookie => 401 JSON
- *   /api/account/** -> no session cookie => 401 JSON
+ *   /account/**      + /en/account/**   -> no cookie => redirect to /login
+ *   /api/ai/**       /api/account/**    -> no cookie => 401 JSON (not locale-prefixed)
  *
- * When required env is missing (DB or AUTH_SECRET), protected pages redirect to
- * /login?error=auth_not_configured and protected APIs return 503 — without
- * touching the DB.
+ * Missing env (DB or AUTH_SECRET) -> protected pages redirect to
+ * /login?error=auth_not_configured, protected APIs return 503.
  */
+import createMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { routing, type Locale } from "@/i18n/routing";
 
-// Auth.js v5 session cookie names (chunked variants get a ".0" suffix).
+const intlMiddleware = createMiddleware(routing);
+
 const SESSION_COOKIE_NAMES = [
   "authjs.session-token",
   "__Secure-authjs.session-token",
-  // legacy next-auth v4 names, just in case
   "next-auth.session-token",
   "__Secure-next-auth.session-token"
 ];
 
 function hasSessionCookie(request: NextRequest): boolean {
   return SESSION_COOKIE_NAMES.some((name) => {
-    const c = request.cookies.get(name);
-    if (c?.value) return true;
-    // chunked cookie: authjs.session-token.0
-    const chunk0 = request.cookies.get(`${name}.0`);
-    return Boolean(chunk0?.value);
+    if (request.cookies.get(name)?.value) return true;
+    return Boolean(request.cookies.get(`${name}.0`)?.value);
   });
 }
 
@@ -49,19 +43,55 @@ function envConfigured(): boolean {
       process.env.DATABASE_URL ||
       process.env.NETLIFY_DATABASE_URL_UNPOOLED
   );
-  const authOk = Boolean(
-    process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
-  );
+  const authOk = Boolean(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET);
   return dbOk && authOk;
 }
 
-export function middleware(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
+function detectLocale(request: NextRequest): Locale {
+  const cookie = request.cookies.get("NEXT_LOCALE")?.value;
+  if (cookie && routing.locales.includes(cookie as Locale)) {
+    return cookie as Locale;
+  }
+  const accept = request.headers.get("accept-language") ?? "";
+  if (accept.toLowerCase().startsWith("en")) return "en";
+  return routing.defaultLocale;
+}
+
+/** Remove a non-default locale prefix so we can match canonical app paths. */
+function stripLocale(pathname: string): string {
+  for (const l of routing.locales) {
+    if (l === routing.defaultLocale) continue;
+    if (pathname === `/${l}`) return "/";
+    if (pathname.startsWith(`/${l}/`)) return pathname.slice(l.length + 1);
+  }
+  return pathname;
+}
+
+function loginRedirect(
+  request: NextRequest,
+  locale: Locale,
+  error?: string
+): NextResponse {
+  const url = request.nextUrl.clone();
+  url.pathname = locale === routing.defaultLocale ? "/login" : `/${locale}/login`;
+  url.search = "";
+  url.searchParams.set(
+    "redirect",
+    request.nextUrl.pathname + request.nextUrl.search
+  );
+  if (error) url.searchParams.set("error", error);
+  return NextResponse.redirect(url);
+}
+
+export default function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // 1) Protected APIs are NOT locale-prefixed — handle them directly.
   const isProtectedApi =
     pathname.startsWith("/api/ai") || pathname.startsWith("/api/account");
-
-  if (!envConfigured()) {
-    if (isProtectedApi) {
+  if (isProtectedApi) {
+    const locale = detectLocale(request);
+    if (!envConfigured()) {
       return NextResponse.json(
         {
           error: "service_misconfigured",
@@ -71,27 +101,38 @@ export function middleware(request: NextRequest) {
         { status: 503 }
       );
     }
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("redirect", pathname + search);
-    url.searchParams.set("error", "auth_not_configured");
-    return NextResponse.redirect(url);
+    if (!hasSessionCookie(request)) {
+      return NextResponse.json(
+        {
+          error: "unauthorized",
+          message: locale === "en" ? "Please sign in first" : "请先登录"
+        },
+        { status: 401 }
+      );
+    }
+    return NextResponse.next();
   }
 
-  if (hasSessionCookie(request)) return NextResponse.next();
-
-  if (isProtectedApi) {
-    return NextResponse.json(
-      { error: "unauthorized", message: "请先登录" },
-      { status: 401 }
-    );
+  // 2) Protected PAGES (account), accounting for the optional locale prefix.
+  const canonical = stripLocale(pathname);
+  const isProtectedPage =
+    canonical === "/account" || canonical.startsWith("/account/");
+  if (isProtectedPage) {
+    const locale = detectLocale(request);
+    if (!envConfigured()) return loginRedirect(request, locale, "auth_not_configured");
+    if (!hasSessionCookie(request)) return loginRedirect(request, locale);
   }
-  const url = request.nextUrl.clone();
-  url.pathname = "/login";
-  url.searchParams.set("redirect", pathname + search);
-  return NextResponse.redirect(url);
+
+  // 3) Everything else: locale routing.
+  return intlMiddleware(request);
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/api/ai/:path*", "/api/account/:path*"]
+  matcher: [
+    // All pages except Next internals, API and files with an extension.
+    "/((?!api|_next|_vercel|.*\\..*).*)",
+    // Protected, non-localized API namespaces.
+    "/api/ai/:path*",
+    "/api/account/:path*"
+  ]
 };

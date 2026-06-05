@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Heart, MessageCircle, Send, User } from "lucide-react";
 
 interface Comment {
@@ -11,37 +12,42 @@ interface Comment {
   replies?: Comment[];
 }
 
-const SEED: Record<string, Comment[]> = {
-  "what-pre-founders-actually-need": [
-    {
-      id: "c1", author: "Wei Zhang", createdAt: Date.now() - 86400000 * 3, likes: 23,
-      text: "「证伪比证成更重要」——这一句让我把团队 6 个月的假设全部重新过了一遍。第二轮我们筛掉了 11 个未经证实的关键假设。",
-      replies: [
-        { id: "c1-r1", author: "智擎团队", createdAt: Date.now() - 86400000 * 2, likes: 8, text: "感谢分享。如果方便，我们可以为你团队做一次免费的反向情景压力测试。" }
-      ]
-    },
-    {
-      id: "c2", author: "MiraN", createdAt: Date.now() - 86400000 * 5, likes: 12,
-      text: "对照组的概念在创业前期太被低估了。希望未来能看到更详细的对照实验方法论。"
-    }
-  ],
-  "5-percent-equity-economics": [
-    {
-      id: "c3", author: "Henry C.", createdAt: Date.now() - 86400000 * 7, likes: 19,
-      text: "5% 反稀释保护具体怎么设计？是棘轮还是加权平均？看到一些文章说棘轮过于苛刻。"
-    }
-  ],
-  "monte-carlo-decision-making": [
-    {
-      id: "c4", author: "Xinran L.", createdAt: Date.now() - 86400000 * 10, likes: 31,
-      text: "把 P10/P50/P90 默认在所有数字旁边显示——这个 UX 设计太对了。"
-    }
-  ]
-};
+type SeedT = (key: string) => string;
+
+function buildSeed(t: SeedT): Record<string, Comment[]> {
+  return {
+    "what-pre-founders-actually-need": [
+      {
+        id: "c1", author: "Wei Zhang", createdAt: Date.now() - 86400000 * 3, likes: 23,
+        text: t("seed.c1"),
+        replies: [
+          { id: "c1-r1", author: t("teamAuthor"), createdAt: Date.now() - 86400000 * 2, likes: 8, text: t("seed.c1r1") }
+        ]
+      },
+      {
+        id: "c2", author: "MiraN", createdAt: Date.now() - 86400000 * 5, likes: 12,
+        text: t("seed.c2")
+      }
+    ],
+    "5-percent-equity-economics": [
+      {
+        id: "c3", author: "Henry C.", createdAt: Date.now() - 86400000 * 7, likes: 19,
+        text: t("seed.c3")
+      }
+    ],
+    "monte-carlo-decision-making": [
+      {
+        id: "c4", author: "Xinran L.", createdAt: Date.now() - 86400000 * 10, likes: 31,
+        text: t("seed.c4")
+      }
+    ]
+  };
+}
 
 const STORAGE_PREFIX = "zq_comments_";
 
 export function CommentSection({ slug }: { slug: string }) {
+  const t = useTranslations("comments");
   const [comments, setComments] = useState<Comment[]>([]);
   const [name, setName] = useState("");
   const [text, setText] = useState("");
@@ -52,8 +58,10 @@ export function CommentSection({ slug }: { slug: string }) {
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_PREFIX + slug) : null;
-    setComments(stored ? JSON.parse(stored) : SEED[slug] ?? []);
-  }, [slug]);
+    const seed = buildSeed(t as unknown as SeedT);
+    setComments(stored ? JSON.parse(stored) : seed[slug] ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, t]);
 
   function persist(next: Comment[]) {
     setComments(next);
@@ -118,7 +126,7 @@ export function CommentSection({ slug }: { slug: string }) {
   return (
     <div>
       <h3 className="text-display-md font-semibold text-ink-900 tracking-snug">
-        评论 <span className="text-ink-400 text-[20px] ml-1">{countAll(comments)}</span>
+        {t("title")} <span className="text-ink-400 text-[20px] ml-1">{countAll(comments)}</span>
       </h3>
 
       <form onSubmit={submit} className="mt-6 rounded-2xl border border-ink-100 bg-white p-6">
@@ -131,23 +139,23 @@ export function CommentSection({ slug }: { slug: string }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="你的名字"
+              placeholder={t("namePlaceholder")}
               className="w-full h-10 px-4 rounded-full border border-ink-200 focus:outline-none focus:border-ink-700 text-[14px]"
               required
             />
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="参与讨论 · 提出反向证伪 · 分享你的判断"
+              placeholder={t("textPlaceholder")}
               rows={3}
               className="w-full px-4 py-3 rounded-2xl border border-ink-200 focus:outline-none focus:border-ink-700 text-[14px] resize-none"
               required
             />
             <div className="flex items-center justify-between">
-              <p className="text-[11px] text-ink-400">{text.length}/600 · 支持 Markdown · 评论将公开显示</p>
+              <p className="text-[11px] text-ink-400">{t("meta", { count: text.length })}</p>
               <button type="submit" disabled={submitting} className="btn-primary px-5 py-2 text-[13px]">
                 <Send className="h-3.5 w-3.5" />
-                发布
+                {t("post")}
               </button>
             </div>
           </div>
@@ -174,7 +182,7 @@ export function CommentSection({ slug }: { slug: string }) {
       </ul>
 
       {comments.length === 0 && (
-        <p className="mt-8 text-center text-[13px] text-ink-400">还没有评论，做第一个吧。</p>
+        <p className="mt-8 text-center text-[13px] text-ink-400">{t("empty")}</p>
       )}
     </div>
   );
@@ -183,6 +191,8 @@ export function CommentSection({ slug }: { slug: string }) {
 function CommentNode({
   comment, onLike, liked, onReply, isReplyingTo, replyText, setReplyText, submitReply, name, setName
 }: any) {
+  const t = useTranslations("comments");
+  const locale = useLocale();
   return (
     <div className="rounded-2xl border border-ink-100 bg-white p-5">
       <div className="flex gap-4">
@@ -192,7 +202,7 @@ function CommentNode({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-[13px] font-semibold text-ink-900">{comment.author}</p>
-            <p className="text-[11px] text-ink-400">{relTime(comment.createdAt)}</p>
+            <p className="text-[11px] text-ink-400">{relTime(comment.createdAt, t, locale)}</p>
           </div>
           <p className="mt-2 text-[14px] text-ink-700 leading-relaxed whitespace-pre-wrap break-words">
             {comment.text}
@@ -204,7 +214,7 @@ function CommentNode({
             </button>
             <button onClick={() => onReply(comment.id)} className="inline-flex items-center gap-1 hover:text-ink-700">
               <MessageCircle className="h-3.5 w-3.5" />
-              回复
+              {t("reply")}
             </button>
           </div>
 
@@ -214,19 +224,19 @@ function CommentNode({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="你的名字"
+                placeholder={t("namePlaceholder")}
                 className="w-full h-9 px-3 rounded-lg border border-ink-200 focus:outline-none focus:border-ink-700 text-[13px] mb-2"
               />
               <textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                placeholder="回复..."
+                placeholder={t("replyPlaceholder")}
                 rows={2}
                 className="w-full px-3 py-2 rounded-lg border border-ink-200 focus:outline-none focus:border-ink-700 text-[13px] resize-none"
               />
               <div className="mt-2 flex justify-end">
                 <button onClick={() => submitReply(comment.id)} className="btn-primary px-4 py-1.5 text-[12px]">
-                  发送
+                  {t("send")}
                 </button>
               </div>
             </div>
@@ -262,14 +272,18 @@ function countAll(list: Comment[]): number {
   return list.reduce((acc, c) => acc + 1 + (c.replies ? countAll(c.replies) : 0), 0);
 }
 
-function relTime(t: number): string {
-  const diff = Date.now() - t;
+function relTime(
+  ts: number,
+  t: (key: string, values?: any) => string,
+  locale: string
+): string {
+  const diff = Date.now() - ts;
   const min = Math.floor(diff / 60_000);
-  if (min < 1) return "刚刚";
-  if (min < 60) return `${min} 分钟前`;
+  if (min < 1) return t("justNow");
+  if (min < 60) return t("minAgo", { n: min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h} 小时前`;
+  if (h < 24) return t("hourAgo", { n: h });
   const d = Math.floor(h / 24);
-  if (d < 30) return `${d} 天前`;
-  return new Date(t).toLocaleDateString("zh-CN");
+  if (d < 30) return t("dayAgo", { n: d });
+  return new Date(ts).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US");
 }

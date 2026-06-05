@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useLocale } from "next-intl";
 
 interface Props {
   value: number;
@@ -18,6 +19,7 @@ export function AnimatedCounter({
   decimals = 1,
   className
 }: Props) {
+  const locale = useLocale();
   const [display, setDisplay] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const started = useRef(false);
@@ -49,7 +51,7 @@ export function AnimatedCounter({
   return (
     <span ref={ref} className={`ticker ${className ?? ""}`}>
       {prefix}
-      {display.toLocaleString("en-US", {
+      {display.toLocaleString(locale === "zh" ? "zh-CN" : "en-US", {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
       })}

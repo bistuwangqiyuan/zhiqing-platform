@@ -1,22 +1,25 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { Menu, X } from "lucide-react";
 import { HeaderAuthLink } from "./HeaderAuthLink";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
-const NAV = [
-  { href: "/products", label: "产品" },
-  { href: "/technology", label: "技术" },
-  { href: "/track-analytics", label: "赛道引擎" },
-  { href: "/market", label: "市场与财务" },
-  { href: "/cases", label: "案例" },
-  { href: "/insights", label: "洞察" },
-  { href: "/pricing", label: "定价" },
-  { href: "/about", label: "关于" }
-];
+const NAV_ITEMS = [
+  { href: "/products", key: "products" },
+  { href: "/technology", key: "technology" },
+  { href: "/track-analytics", key: "track" },
+  { href: "/market", key: "market" },
+  { href: "/cases", key: "cases" },
+  { href: "/insights", key: "insights" },
+  { href: "/pricing", key: "pricing" },
+  { href: "/about", key: "about" }
+] as const;
 
 export function Header() {
+  const t = useTranslations("nav");
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -47,24 +50,25 @@ export function Header() {
         </Link>
 
         <ul className="hidden lg:flex items-center gap-7 text-[13px] text-ink-600">
-          {NAV.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
                 className="hover:text-ink-900 transition-colors duration-200"
               >
-                {item.label}
+                {t(item.key)}
               </Link>
             </li>
           ))}
         </ul>
 
         <div className="hidden lg:flex items-center gap-3">
+          <LanguageSwitcher variant="desktop" />
           <Link
             href="/contact"
             className="text-[13px] text-ink-600 hover:text-ink-900 transition-colors"
           >
-            预约咨询
+            {t("consult")}
           </Link>
           <HeaderAuthLink variant="desktop" />
         </div>
@@ -72,7 +76,7 @@ export function Header() {
         <button
           onClick={() => setOpen(!open)}
           className="lg:hidden p-2 -mr-2 text-ink-700"
-          aria-label="菜单"
+          aria-label={t("menu")}
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -81,24 +85,27 @@ export function Header() {
       {open && (
         <div className="lg:hidden border-t border-ink-100 bg-white/95 backdrop-blur-xl">
           <ul className="container py-4 space-y-2">
-            {NAV.map((item) => (
+            {NAV_ITEMS.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   onClick={() => setOpen(false)}
                   className="block py-2 text-ink-700"
                 >
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               </li>
             ))}
-            <li className="pt-2 flex gap-3">
+            <li className="pt-2 flex items-center gap-3">
               <Link href="/contact" onClick={() => setOpen(false)} className="btn-ghost flex-1">
-                预约咨询
+                {t("consult")}
               </Link>
               <span onClick={() => setOpen(false)} className="flex-1">
                 <HeaderAuthLink variant="mobile" />
               </span>
+            </li>
+            <li className="pt-2">
+              <LanguageSwitcher variant="mobile" />
             </li>
           </ul>
         </div>

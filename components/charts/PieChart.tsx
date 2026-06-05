@@ -8,7 +8,7 @@ interface Datum {
 
 const COLORS = ["#C8A85A", "#1D1D1F", "#0A84FF", "#A1A1A6", "#5E5CE6"];
 
-export function PieChart({ data, height = 280 }: { data: Datum[]; height?: number }) {
+export function PieChart({ data, height = 280, tooltipLabel = "概率" }: { data: Datum[]; height?: number; tooltipLabel?: string }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <RPieChart>
@@ -28,7 +28,7 @@ export function PieChart({ data, height = 280 }: { data: Datum[]; height?: numbe
         </Pie>
         <Tooltip
           contentStyle={{ background: "rgba(255,255,255,0.95)", border: "1px solid #E8E8ED", borderRadius: 12, fontSize: 12 }}
-          formatter={(v: any) => [`${(Number(v) * 100).toFixed(2)}%`, "概率"]}
+          formatter={(v: any) => [`${(Number(v) * 100).toFixed(2)}%`, tooltipLabel]}
         />
       </RPieChart>
     </ResponsiveContainer>

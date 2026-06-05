@@ -198,6 +198,58 @@ async function runL1() {
     record("L1", page.path, true, { status: r.status, ms: r.ms });
   }
 
+  // /en 英文站点冒烟测试 (next-intl locale-prefixed routing)
+  const EN_PAGES = [
+    { path: "/en", mustContain: ["ZhiQing", "PreFounder"] },
+    { path: "/en/products", mustContain: ["Products"] },
+    { path: "/en/technology", mustContain: ["Architecture", "Technology"] },
+    { path: "/en/pricing", mustContain: ["Pricing"] },
+    { path: "/en/contact", mustContain: ["Contact"] },
+    { path: "/en/about", mustContain: ["About"] },
+    { path: "/en/cases", mustContain: ["Case", "Cases"] },
+    { path: "/en/insights", mustContain: ["Insights"] },
+    { path: "/en/login", mustContain: ["Sign in", "Email", "email"] }
+  ];
+  for (const page of EN_PAGES) {
+    const r = await http("GET", page.path);
+    if (!r.ok) {
+      record("L1", page.path, false, { reason: `network: ${r.error}`, ms: r.ms });
+      continue;
+    }
+    if (r.status !== 200) {
+      record("L1", page.path, false, {
+        status: r.status,
+        ms: r.ms,
+        snippet: r.text.slice(0, 200),
+        reason: `expected 200, got ${r.status}`
+      });
+      continue;
+    }
+    // mustContain 语义为「任一关键词命中即可」(英文页面文案有多种表述)
+    const hit = page.mustContain.length === 0 || page.mustContain.some((kw) => r.text.includes(kw));
+    record("L1", page.path, hit, {
+      status: r.status,
+      ms: r.ms,
+      reason: hit ? undefined : `none of keywords present: ${page.mustContain.join(", ")}`,
+      snippet: hit ? undefined : r.text.slice(0, 200)
+    });
+  }
+
+  // /en 页面应声明 lang="en" 且首页带 hreflang alternate
+  {
+    const r = await http("GET", "/en");
+    const hasLang = /<html[^>]*lang="en"/i.test(r.text);
+    const hasHreflang = /hreflang="en/i.test(r.text) || /hreflang="zh/i.test(r.text);
+    const ok = r.ok && r.status === 200 && hasLang;
+    record("L1", "/en declares lang=en (+hreflang)", ok, {
+      status: r.status,
+      ms: r.ms,
+      reason: ok
+        ? hasHreflang ? "lang=en + hreflang present" : "lang=en (no hreflang tag found)"
+        : `lang=en not found`
+    });
+  }
+
   // 不存在的路径应该返回 404
   {
     const r = await http("GET", "/this-path-does-not-exist-xyz123");

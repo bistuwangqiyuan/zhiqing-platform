@@ -7,7 +7,13 @@ interface Item {
   spread: number;
 }
 
-export function Tornado({ items }: { items: Item[] }) {
+export function Tornado({
+  items,
+  note = "各因子 ±20% 对 NPV 的边际影响 (USD M)。条形长度反映影响幅度，正负代表对基准 NPV 的偏移方向。"
+}: {
+  items: Item[];
+  note?: string;
+}) {
   const max = Math.max(...items.map((i) => Math.max(Math.abs(i.low), Math.abs(i.high))));
   return (
     <div className="space-y-3">
@@ -37,7 +43,7 @@ export function Tornado({ items }: { items: Item[] }) {
         );
       })}
       <p className="mt-2 text-[11px] text-ink-400">
-        各因子 ±20% 对 NPV 的边际影响 (USD M)。条形长度反映影响幅度，正负代表对基准 NPV 的偏移方向。
+        {note}
       </p>
     </div>
   );
