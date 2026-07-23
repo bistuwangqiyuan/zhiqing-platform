@@ -44,8 +44,18 @@ export default function ContactPage({
               </p>
 
               <div className="mt-12 space-y-5">
-                <Item icon={<Mail className="h-4 w-4" />} title={t("emailTitle")} value="founders@zhiqing.ai" />
-                <Item icon={<Phone className="h-4 w-4" />} title={t("phoneTitle")} value="+86 21 8088 8888 / +1 415 888 8888" />
+                <Item
+                  icon={<Mail className="h-4 w-4" />}
+                  title={t("emailTitle")}
+                  value={
+                    <>
+                      <a href="mailto:mingxinai@agentmail.to" className="hover:text-ink-900 transition-colors">mingxinai@agentmail.to</a>
+                      <br />
+                      <a href="mailto:13426086861@139.com" className="hover:text-ink-900 transition-colors">13426086861@139.com</a>
+                    </>
+                  }
+                />
+                <Item icon={<Phone className="h-4 w-4" />} title={t("phoneTitle")} value="+86 134 2608 6861" />
                 <Item icon={<MapPin className="h-4 w-4" />} title={t("officeTitle")} value={t("officeValue")} />
                 <Item icon={<ShieldCheck className="h-4 w-4" />} title={t("ndaTitle")} value={t("ndaValue")} />
               </div>
@@ -61,7 +71,7 @@ export default function ContactPage({
   );
 }
 
-function Item({ icon, title, value }: { icon: React.ReactNode; title: string; value: string }) {
+function Item({ icon, title, value }: { icon: React.ReactNode; title: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-4">
       <span className="h-9 w-9 rounded-full bg-ink-50 grid place-items-center text-ink-700 flex-shrink-0">{icon}</span>

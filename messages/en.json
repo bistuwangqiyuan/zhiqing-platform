@@ -446,7 +446,7 @@
     "title": "We don't decide for you —<br></br>we make your <gold>decisions auditable</gold>.",
     "subtitle": "ZhiQing PreFounder is a pre-race lab built for serious founders. We combine multi-agent research, reproducible financial models, and legally structured equity-swap arrangements to nail the most important judgments before you found a company.",
     "heroImgAlt": "ZhiQing office",
-    "heroEyebrow": "HQ Shanghai · Singapore · London",
+    "heroEyebrow": "HQ China · Remote-first",
     "heroCaption": "Research is the product · transparency is the moat",
     "missionEyebrow": "Mission",
     "mission": "In a world where 70% of startup failures stem from 'wrong track and model assumptions,' we make pre-founding judgment structured, quantifiable, and auditable.",
@@ -576,7 +576,7 @@
     "emailTitle": "Email",
     "phoneTitle": "Phone",
     "officeTitle": "Offices",
-    "officeValue": "Shanghai · Singapore · London",
+    "officeValue": "China · Remote-first",
     "ndaTitle": "NDA",
     "ndaValue": "Can be signed before the founder meeting to protect your team's trade secrets",
     "typeLabel": "Inquiry type",
@@ -603,7 +603,7 @@
     "agree": "By submitting you agree to our privacy policy. We never share your project information with third parties.",
     "okTitle": "We've received your request",
     "okDeep": "Your Deep Program application has entered Critic Agent pre-screening; a partner will contact you within 72 hours.",
-    "okGeneral": "We'll reply within 24 hours to {email}"
+    "okGeneral": "We'll reply within 72 hours to {email}"
   },
   "account": {
     "metaTitle": "My account",

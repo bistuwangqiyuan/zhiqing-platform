@@ -6,6 +6,6 @@ export async function POST(req: Request) {
     success: true,
     ticket: `zq_${Date.now()}`,
     type: body.type,
-    note: "Demo: in production this routes to founders@zhiqing.ai + Slack channel."
+    note: "Demo: in production this routes to mingxinai@agentmail.to."
   });
 }

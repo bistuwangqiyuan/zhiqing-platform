@@ -446,7 +446,7 @@
     "title": "我们不替你做决定——<br></br>我们让你的<gold>决定可以被审计</gold>。",
     "subtitle": "智擎 PreFounder 是为「严肃创业者」打造的赛前实验室。我们结合多智能体研究、可复现的财务模型与法务结构化的换股安排，为你完成创业前最重要的判断。",
     "heroImgAlt": "智擎办公室",
-    "heroEyebrow": "HQ Shanghai · Singapore · London",
+    "heroEyebrow": "HQ China · Remote-first",
     "heroCaption": "研究即产品 · 透明即护城河",
     "missionEyebrow": "Mission",
     "mission": "在 70% 的创业失败源于「赛道与模式假设错误」的世界里，我们让创业前的判断可结构化、可量化、可审计。",
@@ -576,7 +576,7 @@
     "emailTitle": "邮箱",
     "phoneTitle": "电话",
     "officeTitle": "办公室",
-    "officeValue": "上海 · 新加坡 · 伦敦",
+    "officeValue": "中国 · 远程优先",
     "ndaTitle": "NDA",
     "ndaValue": "可在创始人会议前签署，保护团队商业秘密",
     "typeLabel": "咨询类型",
@@ -603,7 +603,7 @@
     "agree": "提交即表示同意我们的隐私政策。我们绝不向第三方分享你的项目信息。",
     "okTitle": "我们已收到你的请求",
     "okDeep": "深度陪跑申请已进入 Critic Agent 预筛，72 小时内合伙人会与你联系。",
-    "okGeneral": "我们 24 小时内回复 {email}"
+    "okGeneral": "我们将在 72 小时内回复 {email}"
   },
   "account": {
     "metaTitle": "我的账户",
